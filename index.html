@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Live Receiver</title>
+    <script src="https://js.pusher.com/8.0/pusher.min.js"></script>
+    <style>
+      body {
+        background: #0f172a;
+        color: white;
+        font-family: sans-serif;
+        text-align: center;
+        padding-top: 50px;
+      }
+      #status {
+        font-size: 40px;
+        font-weight: bold;
+        transition: 0.3s;
+      }
+      .box {
+        border: 2px solid #334155;
+        padding: 20px;
+        display: inline-block;
+        border-radius: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="box">
+      <h1>Live Score Status</h1>
+      <div id="status">WAITING...</div>
+      <p id="timestamp"></p>
+    </div>
+
+    <script>
+      // REPLACE WITH YOUR ACTUAL KEY AND CLUSTER
+      const pusher = new Pusher("6d155995c2ac2b71c496", { cluster: "eu" });
+      const channel = pusher.subscribe("my-channel");
+
+      channel.bind("score-update", function (data) {
+        const el = document.getElementById("status");
+        el.innerText = data.score;
+        el.style.color = data.score === "TOP" ? "#10b981" : "#fbbf24";
+        document.getElementById("timestamp").innerText =
+          "Last updated: " + new Date().toLocaleTimeString();
+      });
+    </script>
+  </body>
+</html>
