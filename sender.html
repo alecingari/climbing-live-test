@@ -19,12 +19,12 @@
         margin: auto;
       }
       .opt {
-        margin-bottom: 15px;
+        margin: 15px 0;
         display: flex;
         justify-content: space-between;
         align-items: center;
       }
-      input {
+      input[type="number"] {
         background: #444;
         border: 1px solid #555;
         color: white;
@@ -54,7 +54,7 @@
   </head>
   <body>
     <div class="panel">
-      <h2>Timer Control</h2>
+      <h2>Competition Master</h2>
       <div class="opt">
         <label>Interval (min):</label>
         <input id="time" type="number" value="5" />
@@ -64,62 +64,52 @@
         <input id="rest" type="number" value="15" />
       </div>
       <div class="opt">
-        <label>Start at (HH:MM):</label>
+        <label>Ora Inizio (HH:MM):</label>
         <div style="display: flex; gap: 5px">
-          <input id="h" type="number" placeholder="HH" min="0" max="23" />
-          <input id="m" type="number" placeholder="MM" min="0" max="59" />
+          <input id="h" type="number" placeholder="HH" />
+          <input id="m" type="number" placeholder="MM" />
         </div>
       </div>
-      <button class="btn-start" onclick="sendTimer('running')">START / SYNC ALL</button>
-      <button class="btn-stop" onclick="sendTimer('stopped')">STOP / RESET</button>
+      <div class="opt">
+        <label>Final Mode (No Rest):</label>
+        <input type="checkbox" id="finalMode" />
+      </div>
+      <button class="btn-start" onclick="updateMaster(true)">START / SYNC ALL</button>
+      <button class="btn-stop" onclick="updateMaster(false)">RESET ALL</button>
     </div>
 
     <script>
       const remoteClient = supabase.createClient(SB_URL, SB_KEY);
 
-      async function sendTimer(status) {
-        let endTime;
-        const mins = document.getElementById("time").value;
+      async function updateMaster(running) {
+        let startTime;
         const h = document.getElementById("h").value;
         const m = document.getElementById("m").value;
 
-        if (status === "running") {
+        if (running) {
           if (h !== "" && m !== "") {
-            // Start at specific time
             let target = new Date();
             target.setHours(h, m, 0, 0);
-            // If time is in the past, assume tomorrow
             if (target < new Date()) target.setDate(target.getDate() + 1);
-            endTime = target.toISOString();
+            startTime = target.toISOString();
           } else {
-            // Start immediately
-            endTime = new Date(Date.now() + mins * 60000).toISOString();
+            startTime = new Date().toISOString();
           }
         } else {
-          endTime = new Date().toISOString();
+          startTime = null;
         }
 
         await remoteClient
           .from("live_scores")
           .update({
-            timer_status: status,
-            interval_mins: mins,
+            timer_status: running ? "running" : "stopped",
+            timer_end: startTime, // This acts as the "Master Start Time"
+            interval_mins: document.getElementById("time").value,
             rest_secs: document.getElementById("rest").value,
-            timer_end: endTime,
+            final_mode: document.getElementById("finalMode").checked,
           })
           .eq("id", 1);
       }
-
-      // Force a sync heartbeat every 1 minute
-      setInterval(() => {
-        remoteClient
-          .from("live_scores")
-          .select("timer_status")
-          .eq("id", 1)
-          .then(() => {
-            console.log("Heartbeat sync sent to server");
-          });
-      }, 60000);
     </script>
   </body>
 </html>

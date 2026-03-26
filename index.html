@@ -9,17 +9,24 @@
         margin: 0;
         background: #000;
         color: #fff;
-        font-family: sans-serif;
-        overflow: hidden;
+        font-family: "Arial Black", sans-serif;
         height: 100vh;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
+        overflow: hidden;
       }
       #demo {
         font-size: 35vw;
-        font-family: monospace;
+        line-height: 1;
+        text-align: center;
+      }
+      #status-text {
+        font-size: 5vw;
+        color: #666;
+        text-transform: uppercase;
+        margin-bottom: -2vw;
       }
       #progress-bar {
         position: absolute;
@@ -32,68 +39,97 @@
         height: 100%;
         background: #fff;
         width: 0%;
-        transition: width 0.5s linear;
+        transition: width 0.2s linear;
       }
     </style>
   </head>
   <body>
-    <div id="demo">00:00</div>
+    <div id="status-text">OFFLINE</div>
+    <div id="demo">0:00</div>
     <div id="progress-bar"><div id="progress-done"></div></div>
 
     <script>
       const client = supabase.createClient(SB_URL, SB_KEY);
-      const beep5 = new Audio("./file/countdown.mp3");
-      const beepEnd = new Audio("./file/beep-09.mp3");
+      const b1 = new Audio("./file/beep-1.mp3");
+      const b5 = new Audio("./file/countdown.mp3");
+      const bEnd = new Audio("./file/beep-09.mp3");
 
-      let timerInterval;
-      let lastKnownData = null;
+      let syncData = null;
+      let lastLoggedSec = -1;
 
-      function syncTimer() {
-        if (!lastKnownData || lastKnownData.timer_status !== "running") return;
+      function playSound(sec) {
+        if (sec === lastLoggedSec) return;
+        lastLoggedSec = sec;
+        if (sec === 60) b1.play();
+        if (sec === 5) b5.play();
+        if (sec === 0) bEnd.play();
+      }
 
-        const target = new Date(lastKnownData.timer_end).getTime();
-        const now = new Date().getTime();
-        const diff = Math.ceil((target - now) / 1000);
+      function render(sec, total, label, color) {
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        document.getElementById("demo").innerText = `${m}:${s < 10 ? "0" + s : s}`;
+        document.getElementById("demo").style.color = color;
+        document.getElementById("status-text").innerText = label;
+        document.getElementById("progress-done").style.width = `${(sec / total) * 100}%`;
+        document.getElementById("progress-done").style.backgroundColor = color;
+        playSound(sec);
+      }
 
-        if (diff <= 0) {
-          document.getElementById("demo").innerText = "00:00";
-          document.getElementById("progress-done").style.width = "0%";
-          if (diff === 0) beepEnd.play();
+      function tick() {
+        if (!syncData || syncData.timer_status !== "running") {
+          render(0, 1, "READY", "#333");
           return;
         }
 
-        const m = Math.floor(diff / 60);
-        const s = diff % 60;
-        document.getElementById("demo").innerText = `${m}:${s < 10 ? "0" + s : s}`;
+        const now = new Date().getTime();
+        const masterStart = new Date(syncData.timer_end).getTime();
 
-        const totalSecs = lastKnownData.interval_mins * 60;
-        document.getElementById("progress-done").style.width = `${(diff / totalSecs) * 100}%`;
+        // 1. COUNTDOWN TO START
+        if (now < masterStart) {
+          const diff = Math.ceil((masterStart - now) / 1000);
+          render(diff, diff, "STARTING IN...", "#3b82f6");
+          return;
+        }
 
-        if (diff === 5) beep5.play();
+        const workSecs = syncData.interval_mins * 60;
+        const restSecs = syncData.rest_secs;
+        const elapsedTotal = Math.floor((now - masterStart) / 1000);
+
+        // 2. FINAL MODE (Single Interval)
+        if (syncData.final_mode) {
+          const remain = workSecs - elapsedTotal;
+          if (remain <= 0) render(0, 1, "FINISH", "#ef4444");
+          else render(remain, workSecs, "WORK", "#ffffff");
+          return;
+        }
+
+        // 3. INTERVAL MODE (Repeat)
+        const cycle = workSecs + restSecs;
+        const timeInCycle = elapsedTotal % cycle;
+
+        if (timeInCycle < workSecs) {
+          render(workSecs - timeInCycle, workSecs, "WORK", "#ffffff");
+        } else {
+          render(restSecs - (timeInCycle - workSecs), restSecs, "REST", "#ef4444");
+        }
       }
 
-      // Main Listener
       client
-        .channel("global-sync")
+        .channel("master")
         .on(
           "postgres_changes",
           { event: "UPDATE", schema: "public", table: "live_scores" },
-          (payload) => {
-            lastKnownData = payload.new;
-            console.log("Sync Received from Server");
-          }
+          (p) => (syncData = p.new)
         )
         .subscribe();
 
-      // High-frequency UI update (keeps the visual smooth)
-      setInterval(syncTimer, 100);
-
-      // Fetch initial state on load
-      async function loadInitial() {
+      async function init() {
         const { data } = await client.from("live_scores").select("*").eq("id", 1).single();
-        lastKnownData = data;
+        syncData = data;
+        setInterval(tick, 100);
       }
-      loadInitial();
+      init();
     </script>
   </body>
 </html>
