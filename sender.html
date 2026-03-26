@@ -15,91 +15,140 @@
       body {
         background: var(--bg);
         color: white;
-        font-family: "Segoe UI", system-ui, sans-serif;
+        font-family: system-ui, -apple-system, sans-serif;
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: 10px;
+        padding: 15px;
         margin: 0;
       }
 
-      /* Live Monitor Section */
+      /* Monitor Section */
       .monitor {
         width: 100%;
         max-width: 400px;
         background: #000;
         border-radius: 15px;
-        padding: 20px;
-        margin-bottom: 15px;
+        padding: 15px;
+        margin-bottom: 12px;
         text-align: center;
-        border: 2px solid #334155;
+        border: 1px solid #334155;
         box-sizing: border-box;
       }
       #mon-label {
-        font-size: 0.8rem;
+        font-size: 0.7rem;
         color: #64748b;
         text-transform: uppercase;
-        letter-spacing: 2px;
+        letter-spacing: 1.5px;
       }
       #mon-timer {
         font-family: "Arial Black", sans-serif;
-        line-height: 1;
-        transition: font-size 0.1s;
+        line-height: 1.1;
+        font-size: 2.8rem;
+        margin: 5px 0;
+        color: #fff;
+      }
+      #mon-broadcast {
+        font-size: 0.85rem;
+        color: var(--accent);
+        font-weight: bold;
+        min-height: 1.2em;
       }
 
-      /* Controls Section */
+      /* Panels */
       .panel {
         background: var(--card);
-        padding: 20px;
+        padding: 18px;
         border-radius: 20px;
         width: 100%;
         max-width: 400px;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
         box-sizing: border-box;
+        margin-bottom: 12px;
       }
+      .section-title {
+        font-size: 0.65rem;
+        color: var(--accent);
+        font-weight: 800;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+        display: block;
+      }
+
+      /* Inputs */
       .opt {
-        margin: 10px 0;
+        margin: 8px 0;
         display: flex;
         justify-content: space-between;
         align-items: center;
         background: rgba(0, 0, 0, 0.2);
-        padding: 10px;
+        padding: 10px 14px;
         border-radius: 12px;
       }
       label {
-        font-size: 0.8rem;
+        font-size: 0.85rem;
         font-weight: 600;
         color: #94a3b8;
       }
+
       input[type="number"] {
         background: #334155;
-        border: none;
+        border: 1px solid #475569;
         color: white;
         padding: 8px;
         border-radius: 8px;
-        width: 60px;
+        font-size: 1.1rem;
+        width: 65px;
         text-align: center;
+      }
+      input[type="text"] {
+        background: #334155;
+        border: 1px solid #475569;
+        color: white;
+        padding: 10px;
+        border-radius: 8px;
         font-size: 1rem;
+        width: 100%;
+        margin-right: 8px;
       }
       input[type="checkbox"] {
-        width: 18px;
-        height: 18px;
+        width: 20px;
+        height: 20px;
         accent-color: var(--accent);
+        cursor: pointer;
       }
+
       .grid-time {
         display: flex;
-        gap: 5px;
+        gap: 6px;
+      }
+      .grid-time input {
+        width: 50px;
+      }
+
+      /* Action Buttons */
+      .btn-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
       }
       .btn {
         width: 100%;
-        padding: 15px;
-        margin-top: 10px;
+        padding: 16px;
         border: none;
         border-radius: 12px;
-        font-size: 1rem;
+        font-size: 1.1rem;
         font-weight: 800;
         cursor: pointer;
+        transition: all 0.2s;
       }
+      .btn:disabled {
+        opacity: 0.15;
+        cursor: not-allowed;
+        filter: grayscale(1);
+      }
+
       .btn-start {
         background: var(--green);
         color: white;
@@ -108,15 +157,60 @@
         background: var(--red);
         color: white;
       }
+      .btn-push {
+        width: auto;
+        padding: 0 15px;
+        height: 42px;
+        background: var(--accent);
+        color: #0f172a;
+        font-size: 0.85rem;
+        font-weight: 700;
+        border-radius: 8px;
+      }
+
+      /* Lock Toggle Button */
+      .lock-container {
+        display: flex;
+        justify-content: center;
+        margin-top: 15px;
+      }
+      .btn-lock {
+        width: auto;
+        min-width: 180px;
+        padding: 10px 20px;
+        font-size: 0.75rem;
+        background: #475569;
+        color: #f1f5f9;
+        border-radius: 30px;
+        border: 2px solid transparent;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 700;
+      }
+      .btn-lock.is-locked {
+        background: rgba(239, 68, 68, 0.15);
+        color: var(--red);
+        border-color: var(--red);
+      }
     </style>
   </head>
   <body>
     <div class="monitor">
       <div id="mon-label">LIVE MONITOR</div>
       <div id="mon-timer">0:00</div>
+      <div id="mon-broadcast"></div>
     </div>
 
     <div class="panel">
+      <span class="section-title">Broadcast Message</span>
+      <div style="display: flex; align-items: center">
+        <input type="text" id="broadcastInput" placeholder="Type here..." />
+        <button class="btn btn-push" onclick="pushBroadcast()">PUSH</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <span class="section-title">Timer Setup</span>
       <div class="opt">
         <label>INTERVAL (MIN)</label>
         <input id="time" type="number" value="5" />
@@ -132,95 +226,64 @@
           <input id="m" type="number" placeholder="MM" />
         </div>
       </div>
-      <div class="opt">
-        <label>FINAL MODE</label>
-        <input type="checkbox" id="finalMode" />
+
+      <div style="display: flex; gap: 10px">
+        <div class="opt" style="flex: 1; margin: 5px 0">
+          <label>FINAL</label>
+          <input type="checkbox" id="finalMode" />
+        </div>
+        <div class="opt" style="flex: 1; margin: 5px 0">
+          <label>PROGRESS</label>
+          <input type="checkbox" id="showProgress" />
+        </div>
       </div>
-      <div class="opt">
-        <label>SHOW PROGRESS</label>
-        <input type="checkbox" id="showProgress" checked />
+
+      <div class="btn-row">
+        <button id="startBtn" class="btn btn-start" onclick="updateMaster(true)">START</button>
+        <button id="stopBtn" class="btn btn-stop" onclick="updateMaster(false)">RESET</button>
       </div>
-      <button class="btn btn-start" onclick="updateMaster(true)">START SESSION</button>
-      <button class="btn btn-stop" onclick="updateMaster(false)">RESET SYSTEM</button>
+
+      <div class="lock-container">
+        <button id="lockBtn" class="btn btn-lock" onclick="toggleDbLock()">Tap to Lock</button>
+      </div>
     </div>
 
     <script>
       const client = supabase.createClient(SB_URL, SB_KEY);
       let syncData = null;
 
-      // --- MONITOR LOGIC ---
-      function adjustMonFontSize(text) {
-        const display = document.getElementById("mon-timer");
-        const len = text.toString().length;
-        if (len <= 2) display.style.fontSize = "80px";
-        else if (len <= 5) display.style.fontSize = "60px";
-        else display.style.fontSize = "40px";
+      async function toggleDbLock() {
+        const newLockStatus = !syncData.is_locked;
+        await client.from("live_scores").update({ is_locked: newLockStatus }).eq("id", 1);
       }
 
-      function tick() {
-        const display = document.getElementById("mon-timer");
-        const label = document.getElementById("mon-label");
-
-        if (!syncData || syncData.timer_status !== "running") {
-          display.innerText = "0:00";
-          display.style.color = "#333";
-          label.innerText = "OFFLINE";
-          adjustMonFontSize("0:00");
-          return;
-        }
-
-        const now = new Date().getTime();
-        const masterStart = new Date(syncData.timer_end).getTime();
-
-        if (now < masterStart) {
-          const diff = Math.ceil((masterStart - now) / 1000);
-          display.innerText = diff;
-          display.style.color = "#38bdf8";
-          label.innerText = "COUNTDOWN TO START";
-          adjustMonFontSize(diff);
-          return;
-        }
-
-        const workSecs = syncData.interval_mins * 60;
-        const restSecs = parseInt(syncData.rest_secs);
-        const elapsed = Math.floor((now - masterStart) / 1000);
-
-        if (syncData.final_mode) {
-          const remain = Math.max(0, workSecs - elapsed);
-          const m = Math.floor(remain / 60);
-          const s = remain % 60;
-          const timeStr = `${m}:${s < 10 ? "0" + s : s}`;
-          display.innerText = timeStr;
-          display.style.color = remain > 0 ? "#fff" : "#ef4444";
-          label.innerText = remain > 0 ? "WORK (FINAL)" : "FINISHED";
-          adjustMonFontSize(timeStr);
+      function updateLockUI(locked) {
+        const startBtn = document.getElementById("startBtn");
+        const stopBtn = document.getElementById("stopBtn");
+        const lockBtn = document.getElementById("lockBtn");
+        if (locked) {
+          startBtn.disabled = true;
+          stopBtn.disabled = true;
+          lockBtn.innerHTML = "🔒 Tap to Unlock";
+          lockBtn.classList.add("is-locked");
         } else {
-          const cycle = workSecs + restSecs;
-          const timeInCycle = elapsed % cycle;
-          if (timeInCycle < workSecs) {
-            const remain = workSecs - timeInCycle;
-            const m = Math.floor(remain / 60);
-            const s = remain % 60;
-            const timeStr = `${m}:${s < 10 ? "0" + s : s}`;
-            display.innerText = timeStr;
-            display.style.color = "#fff";
-            label.innerText = "WORK BLOCK";
-            adjustMonFontSize(timeStr);
-          } else {
-            const remain = restSecs - (timeInCycle - workSecs);
-            display.innerText = remain;
-            display.style.color = "#ef4444";
-            label.innerText = "RESTING";
-            adjustMonFontSize(remain);
-          }
+          startBtn.disabled = false;
+          stopBtn.disabled = false;
+          lockBtn.innerHTML = "🔓 Tap to Lock";
+          lockBtn.classList.remove("is-locked");
         }
       }
 
-      // --- SENDER LOGIC ---
+      async function pushBroadcast() {
+        const text = document.getElementById("broadcastInput").value;
+        await client.from("live_scores").update({ broadcast_text: text }).eq("id", 1);
+      }
+
       async function updateMaster(running) {
+        if (syncData.is_locked) return;
         let startTime = null;
-        const h = document.getElementById("h").value;
-        const m = document.getElementById("m").value;
+        const h = document.getElementById("h").value,
+          m = document.getElementById("m").value;
         if (running) {
           if (h !== "" && m !== "") {
             let t = new Date();
@@ -244,20 +307,38 @@
           .eq("id", 1);
       }
 
-      // --- INITIALIZE ---
+      function tick() {
+        if (!syncData) return;
+        document.getElementById("mon-broadcast").innerText = syncData.broadcast_text || "";
+        updateLockUI(syncData.is_locked);
+        const display = document.getElementById("mon-timer");
+        if (syncData.timer_status !== "running") {
+          display.innerText = "0:00";
+          return;
+        }
+        const now = Date.now(),
+          master = new Date(syncData.timer_end).getTime();
+        const elapsed = Math.floor((now - master) / 1000);
+        display.innerText = elapsed < 0 ? Math.abs(elapsed) : "LIVE";
+      }
+
       client
         .channel("master")
         .on(
           "postgres_changes",
           { event: "UPDATE", schema: "public", table: "live_scores" },
-          (p) => (syncData = p.new)
+          (p) => {
+            syncData = p.new;
+            tick();
+          }
         )
         .subscribe();
 
       async function init() {
         const { data } = await client.from("live_scores").select("*").eq("id", 1).single();
         syncData = data;
-        setInterval(tick, 200); // Update phone monitor 5 times a second
+        tick();
+        setInterval(tick, 1000);
       }
       init();
     </script>

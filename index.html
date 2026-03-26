@@ -1,116 +1,155 @@
-<!DOCTYPE HTML>
+<!DOCTYPE html>
 <html>
-<head>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="config.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
-        body { margin: 0; background: #000; color: #fff; font-family: 'Arial Black', sans-serif; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden; }
-        #demo { line-height: 0.8; text-align: center; transition: color 0.3s, font-size 0.1s; width: 100vw; }
-        #status-text { font-size: 4vw; color: #444; text-transform: uppercase; margin-bottom: 10px; }
-        #progress-bar { position: absolute; bottom: 0; width: 100%; height: 30px; background: #111; display: none; }
-        #progress-done { height: 100%; background: #fff; width: 0%; transition: width 0.2s linear; }
+      body {
+        margin: 0;
+        background: #000;
+        color: #fff;
+        font-family: "Arial Black", sans-serif;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+      }
+      #broadcast {
+        position: absolute;
+        top: 5vh;
+        width: 90%;
+        text-align: center;
+        font-size: 6vw;
+        color: #38bdf8;
+        text-transform: uppercase;
+        font-weight: bold;
+      }
+      #demo {
+        text-align: center;
+        width: 100vw;
+        white-space: nowrap;
+        line-height: 0.8;
+      }
+      #progress-bar {
+        position: absolute;
+        bottom: 0;
+        width: 100%;
+        height: 3vh;
+        background: #111;
+        display: none;
+      }
+      #progress-done {
+        height: 100%;
+        background: #fff;
+        width: 0%;
+      }
     </style>
-</head>
-<body>
-    <div id="status-text">OFFLINE</div>
+  </head>
+  <body>
+    <div id="broadcast"></div>
     <div id="demo">0:00</div>
     <div id="progress-bar"><div id="progress-done"></div></div>
 
     <script>
-        const client = supabase.createClient(SB_URL, SB_KEY);
-        const b1 = new Audio("./file/beep-1.mp3");
-        const b5 = new Audio("./file/countdown.mp3");
-        const bEnd = new Audio("./file/beep-09.mp3");
+      const client = supabase.createClient(SB_URL, SB_KEY);
+      const b1 = new Audio("./file/beep-1.mp3"),
+        b5 = new Audio("./file/countdown.mp3"),
+        bEnd = new Audio("./file/beep-09.mp3");
+      let syncData = null,
+        lastSec = -1;
 
-        let syncData = null;
-        let lastLoggedSec = -1;
+      function fitTextAndRender(text, color) {
+        const display = document.getElementById("demo");
+        const chars = text.toString().length;
 
-        // Auto Font Size Logic
-        function adjustFontSize(text) {
-            const len = text.length;
-            let size = 40; // Default for short text
-            if (len > 4) size = 30;
-            if (len > 6) size = 20;
-            document.getElementById("demo").style.fontSize = size + "vw";
+        // Dynamic VW calculation based on string length
+        let fontSize = 55; // 1-3 chars
+        if (chars > 3) fontSize = 38;
+        if (chars > 5) fontSize = 30;
+        if (chars > 7) fontSize = 22;
+
+        display.innerText = text;
+        display.style.fontSize = fontSize + "vw";
+        display.style.color = color;
+        document.getElementById("broadcast").innerText = syncData?.broadcast_text || "";
+
+        const bar = document.getElementById("progress-bar");
+        if (syncData?.show_progress) {
+          bar.style.display = "block";
+          document.getElementById("progress-done").style.backgroundColor = color;
+        } else {
+          bar.style.display = "none";
         }
+      }
 
-        function render(sec, total, label, color) {
-            const m = Math.floor(sec / 60);
-            const s = sec % 60;
-            const timeStr = `${m}:${s < 10 ? '0' + s : s}`;
-            
-            const display = document.getElementById("demo");
-            display.innerText = timeStr;
-            display.style.color = color;
-            adjustFontSize(timeStr);
+      function tick() {
+        if (!syncData || syncData.timer_status !== "running") {
+          fitTextAndRender("0:00", "#333");
+          return;
+        }
+        const now = Date.now(),
+          master = new Date(syncData.timer_end).getTime();
 
-            document.getElementById("status-text").innerText = label;
-            
-            // Progress Bar Logic
-            const bar = document.getElementById("progress-bar");
-            if (syncData?.show_progress) {
-                bar.style.display = "block";
-                document.getElementById("progress-done").style.width = `${(sec/total)*100}%`;
-                document.getElementById("progress-done").style.backgroundColor = color;
+        if (now < master) {
+          const d = Math.ceil((master - now) / 1000);
+          fitTextAndRender(d, "#38bdf8");
+        } else {
+          const work = syncData.interval_mins * 60,
+            rest = parseInt(syncData.rest_secs);
+          const elapsed = Math.floor((now - master) / 1000);
+
+          if (syncData.final_mode) {
+            const r = Math.max(0, work - elapsed);
+            fitTextAndRender(format(r), r > 0 ? "#fff" : "#ef4444");
+            checkAudio(r);
+          } else {
+            const cycle = work + rest,
+              time = elapsed % cycle;
+            if (time < work) {
+              const rem = work - time;
+              fitTextAndRender(format(rem), "#fff");
+              checkAudio(rem);
             } else {
-                bar.style.display = "none";
+              const rem = rest - (time - work);
+              fitTextAndRender(rem, "#ef4444"); // Just seconds
+              checkAudio(rem);
             }
-
-            if (sec !== lastLoggedSec) {
-                lastLoggedSec = sec;
-                if (sec === 60) b1.play();
-                if (sec === 5) b5.play();
-                if (sec === 0) bEnd.play();
-            }
+          }
         }
+      }
 
-        function tick() {
-            if (!syncData || syncData.timer_status !== 'running') {
-                render(0, 1, "READY", "#222");
-                return;
-            }
-            const now = new Date().getTime();
-            const masterStart = new Date(syncData.timer_end).getTime();
+      function format(s) {
+        const m = Math.floor(s / 60),
+          sec = s % 60;
+        return `${m}:${sec < 10 ? "0" + sec : sec}`;
+      }
 
-            if (now < masterStart) {
-                const diff = Math.ceil((masterStart - now) / 1000);
-                render(diff, diff, "STARTING IN...", "#38bdf8");
-                return;
-            }
-
-            const workSecs = syncData.interval_mins * 60;
-            const restSecs = parseInt(syncData.rest_secs);
-            const elapsed = Math.floor((now - masterStart) / 1000);
-
-            if (syncData.final_mode) {
-                const remain = workSecs - elapsed;
-                if (remain <= 0) render(0, 1, "FINISH", "#ef4444");
-                else render(remain, workSecs, "WORK", "#ffffff");
-            } else {
-                const cycle = workSecs + restSecs;
-                const timeInCycle = elapsed % cycle;
-                if (timeInCycle < workSecs) {
-                    render(workSecs - timeInCycle, workSecs, "WORK", "#ffffff");
-                } else {
-                    // Rest display: Only show seconds as requested
-                    const restLeft = restSecs - (timeInCycle - workSecs);
-                    const display = document.getElementById("demo");
-                    display.innerText = restLeft;
-                    display.style.color = "#ef4444";
-                    adjustFontSize(restLeft.toString());
-                    document.getElementById("status-text").innerText = "REST";
-                }
-            }
+      function checkAudio(s) {
+        if (s !== lastSec) {
+          lastSec = s;
+          if (s === 60) b1.play();
+          if (s === 5) b5.play();
+          if (s === 0) bEnd.play();
         }
+      }
 
-        client.channel('master').on('postgres_changes', {event:'UPDATE', schema:'public', table:'live_scores'}, p => syncData = p.new).subscribe();
-        async function init() {
-            const { data } = await client.from('live_scores').select('*').eq('id', 1).single();
-            syncData = data;
-            setInterval(tick, 100);
-        }
-        init();
+      client
+        .channel("master")
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "live_scores" },
+          (p) => (syncData = p.new)
+        )
+        .subscribe();
+      async function init() {
+        const { data } = await client.from("live_scores").select("*").eq("id", 1).single();
+        syncData = data;
+        setInterval(tick, 100);
+      }
+      init();
     </script>
-</body>
+  </body>
 </html>
