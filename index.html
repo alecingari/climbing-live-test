@@ -1,39 +1,43 @@
 <!DOCTYPE html>
+
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Climbing Live Dashboard</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
-        body {
-            background-color: #0f172a;
-            color: white;
-            font-family: 'Inter', sans-serif;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-        #timer {
-            font-size: 8rem;
-            font-family: monospace;
-            color: #fbbf24;
-            margin-bottom: 20px;
-        }
-        #status {
-            font-size: 12rem;
-            font-weight: 900;
-            text-transform: uppercase;
-            text-shadow: 0 0 30px rgba(56, 189, 248, 0.4);
-        }
-        .label { font-size: 1.5rem; color: #64748b; margin-bottom: 10px; }
+      body {
+        background-color: #0f172a;
+        color: white;
+        font-family: "Inter", sans-serif;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+      }
+      #timer {
+        font-size: 8rem;
+        font-family: monospace;
+        color: #fbbf24;
+        margin-bottom: 20px;
+      }
+      #status {
+        font-size: 12rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        text-shadow: 0 0 30px rgba(56, 189, 248, 0.4);
+      }
+      .label {
+        font-size: 1.5rem;
+        color: #64748b;
+        margin-bottom: 10px;
+      }
     </style>
-</head>
-<body>
-
+  </head>
+  <body>
     <div class="label">TIME REMAINING</div>
     <div id="timer">00:00</div>
 
@@ -41,52 +45,56 @@
     <div id="status">WAITING</div>
 
     <script>
-        const SB_URL = 'https://lissscvlvmzjswsykvoq.supabase.co';
-        const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxpc3NzY3Zsdm16anN3c3lrdm9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0ODAyNTAsImV4cCI6MjA5MDA1NjI1MH0.Muj9vosIuV1bFJQ5_iR9JkQ22gzvBcc70kbjnBFwBbM';
-        const receiverClient = supabase.createClient(SB_URL, SB_KEY);
+      const SB_URL = "https://lissscvlvmzjswsykvoq.supabase.co";
+      const SB_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxpc3NzY3Zsdm16anN3c3lrdm9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0ODAyNTAsImV4cCI6MjA5MDA1NjI1MH0.Muj9vosIuV1bFJQ5_iR9JkQ22gzvBcc70kbjnBFwBbM";
+      const receiverClient = supabase.createClient(SB_URL, SB_KEY);
 
-        let countdownInterval;
+      let countdownInterval;
 
-        function startCountdown(endTimeStr) {
+      function startCountdown(endTimeStr) {
+        clearInterval(countdownInterval);
+        const endTime = new Date(endTimeStr).getTime();
+
+        countdownInterval = setInterval(() => {
+          const now = new Date().getTime();
+          const distance = endTime - now;
+
+          if (distance <= 0) {
             clearInterval(countdownInterval);
-            const endTime = new Date(endTimeStr).getTime();
+            document.getElementById("timer").innerText = "00:00";
+            document.getElementById("timer").style.color = "#ef4444"; // Red when finished
+            return;
+          }
 
-            countdownInterval = setInterval(() => {
-                const now = new Date().getTime();
-                const distance = endTime - now;
+          document.getElementById("timer").style.color = "#fbbf24";
+          const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+          const s = Math.floor((distance % (1000 * 60)) / 1000);
+          document.getElementById("timer").innerText = `${m}:${s < 10 ? "0" + s : s}`;
+        }, 1000);
+      }
 
-                if (distance <= 0) {
-                    clearInterval(countdownInterval);
-                    document.getElementById('timer').innerText = "00:00";
-                    document.getElementById('timer').style.color = "#ef4444"; // Red when finished
-                    return;
-                }
+      // Listen for Realtime changes
+      receiverClient
+        .channel("climbing-room")
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "live_scores" },
+          (payload) => {
+            console.log("Update:", payload.new);
 
-                document.getElementById('timer').style.color = "#fbbf24";
-                const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-                const s = Math.floor((distance % (1000 * 60)) / 1000);
-                document.getElementById('timer').innerText = `${m}:${s < 10 ? '0' + s : s}`;
-            }, 1000);
-        }
+            // Update Score
+            if (payload.new.score_value) {
+              document.getElementById("status").innerText = payload.new.score_value;
+            }
 
-        // Listen for Realtime changes
-        receiverClient
-            .channel('climbing-room')
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'live_scores' }, 
-            payload => {
-                console.log('Update:', payload.new);
-                
-                // Update Score
-                if (payload.new.score_value) {
-                    document.getElementById('status').innerText = payload.new.score_value;
-                }
-                
-                // Update Timer
-                if (payload.new.timer_end) {
-                    startCountdown(payload.new.timer_end);
-                }
-            })
-            .subscribe();
+            // Update Timer
+            if (payload.new.timer_end) {
+              startCountdown(payload.new.timer_end);
+            }
+          }
+        )
+        .subscribe();
     </script>
-</body>
+  </body>
 </html>
