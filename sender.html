@@ -5,111 +5,261 @@
     <script src="config.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
-      body {
-        background: #1a1a1a;
-        color: white;
-        font-family: sans-serif;
-        padding: 20px;
+      :root {
+        --bg: #0f172a;
+        --card: #1e293b;
+        --accent: #38bdf8;
+        --green: #22c55e;
+        --red: #ef4444;
       }
-      .panel {
-        background: #2a2a2a;
-        padding: 20px;
-        border-radius: 12px;
+      body {
+        background: var(--bg);
+        color: white;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 10px;
+        margin: 0;
+      }
+
+      /* Live Monitor Section */
+      .monitor {
+        width: 100%;
         max-width: 400px;
-        margin: auto;
+        background: #000;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 15px;
+        text-align: center;
+        border: 2px solid #334155;
+        box-sizing: border-box;
+      }
+      #mon-label {
+        font-size: 0.8rem;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+      }
+      #mon-timer {
+        font-family: "Arial Black", sans-serif;
+        line-height: 1;
+        transition: font-size 0.1s;
+      }
+
+      /* Controls Section */
+      .panel {
+        background: var(--card);
+        padding: 20px;
+        border-radius: 20px;
+        width: 100%;
+        max-width: 400px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+        box-sizing: border-box;
       }
       .opt {
-        margin: 15px 0;
+        margin: 10px 0;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 10px;
+        border-radius: 12px;
+      }
+      label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #94a3b8;
       }
       input[type="number"] {
-        background: #444;
-        border: 1px solid #555;
+        background: #334155;
+        border: none;
         color: white;
         padding: 8px;
-        border-radius: 4px;
+        border-radius: 8px;
         width: 60px;
         text-align: center;
+        font-size: 1rem;
       }
-      button {
+      input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--accent);
+      }
+      .grid-time {
+        display: flex;
+        gap: 5px;
+      }
+      .btn {
         width: 100%;
         padding: 15px;
         margin-top: 10px;
         border: none;
-        border-radius: 8px;
+        border-radius: 12px;
+        font-size: 1rem;
+        font-weight: 800;
         cursor: pointer;
-        font-weight: bold;
       }
       .btn-start {
-        background: #22c55e;
+        background: var(--green);
         color: white;
       }
       .btn-stop {
-        background: #ef4444;
+        background: var(--red);
         color: white;
       }
     </style>
   </head>
   <body>
+    <div class="monitor">
+      <div id="mon-label">LIVE MONITOR</div>
+      <div id="mon-timer">0:00</div>
+    </div>
+
     <div class="panel">
-      <h2>Competition Master</h2>
       <div class="opt">
-        <label>Interval (min):</label>
+        <label>INTERVAL (MIN)</label>
         <input id="time" type="number" value="5" />
       </div>
       <div class="opt">
-        <label>Rest (sec):</label>
+        <label>REST (SEC)</label>
         <input id="rest" type="number" value="15" />
       </div>
       <div class="opt">
-        <label>Ora Inizio (HH:MM):</label>
-        <div style="display: flex; gap: 5px">
+        <label>START TIME</label>
+        <div class="grid-time">
           <input id="h" type="number" placeholder="HH" />
           <input id="m" type="number" placeholder="MM" />
         </div>
       </div>
       <div class="opt">
-        <label>Final Mode (No Rest):</label>
+        <label>FINAL MODE</label>
         <input type="checkbox" id="finalMode" />
       </div>
-      <button class="btn-start" onclick="updateMaster(true)">START / SYNC ALL</button>
-      <button class="btn-stop" onclick="updateMaster(false)">RESET ALL</button>
+      <div class="opt">
+        <label>SHOW PROGRESS</label>
+        <input type="checkbox" id="showProgress" checked />
+      </div>
+      <button class="btn btn-start" onclick="updateMaster(true)">START SESSION</button>
+      <button class="btn btn-stop" onclick="updateMaster(false)">RESET SYSTEM</button>
     </div>
 
     <script>
-      const remoteClient = supabase.createClient(SB_URL, SB_KEY);
+      const client = supabase.createClient(SB_URL, SB_KEY);
+      let syncData = null;
 
+      // --- MONITOR LOGIC ---
+      function adjustMonFontSize(text) {
+        const display = document.getElementById("mon-timer");
+        const len = text.toString().length;
+        if (len <= 2) display.style.fontSize = "80px";
+        else if (len <= 5) display.style.fontSize = "60px";
+        else display.style.fontSize = "40px";
+      }
+
+      function tick() {
+        const display = document.getElementById("mon-timer");
+        const label = document.getElementById("mon-label");
+
+        if (!syncData || syncData.timer_status !== "running") {
+          display.innerText = "0:00";
+          display.style.color = "#333";
+          label.innerText = "OFFLINE";
+          adjustMonFontSize("0:00");
+          return;
+        }
+
+        const now = new Date().getTime();
+        const masterStart = new Date(syncData.timer_end).getTime();
+
+        if (now < masterStart) {
+          const diff = Math.ceil((masterStart - now) / 1000);
+          display.innerText = diff;
+          display.style.color = "#38bdf8";
+          label.innerText = "COUNTDOWN TO START";
+          adjustMonFontSize(diff);
+          return;
+        }
+
+        const workSecs = syncData.interval_mins * 60;
+        const restSecs = parseInt(syncData.rest_secs);
+        const elapsed = Math.floor((now - masterStart) / 1000);
+
+        if (syncData.final_mode) {
+          const remain = Math.max(0, workSecs - elapsed);
+          const m = Math.floor(remain / 60);
+          const s = remain % 60;
+          const timeStr = `${m}:${s < 10 ? "0" + s : s}`;
+          display.innerText = timeStr;
+          display.style.color = remain > 0 ? "#fff" : "#ef4444";
+          label.innerText = remain > 0 ? "WORK (FINAL)" : "FINISHED";
+          adjustMonFontSize(timeStr);
+        } else {
+          const cycle = workSecs + restSecs;
+          const timeInCycle = elapsed % cycle;
+          if (timeInCycle < workSecs) {
+            const remain = workSecs - timeInCycle;
+            const m = Math.floor(remain / 60);
+            const s = remain % 60;
+            const timeStr = `${m}:${s < 10 ? "0" + s : s}`;
+            display.innerText = timeStr;
+            display.style.color = "#fff";
+            label.innerText = "WORK BLOCK";
+            adjustMonFontSize(timeStr);
+          } else {
+            const remain = restSecs - (timeInCycle - workSecs);
+            display.innerText = remain;
+            display.style.color = "#ef4444";
+            label.innerText = "RESTING";
+            adjustMonFontSize(remain);
+          }
+        }
+      }
+
+      // --- SENDER LOGIC ---
       async function updateMaster(running) {
-        let startTime;
+        let startTime = null;
         const h = document.getElementById("h").value;
         const m = document.getElementById("m").value;
-
         if (running) {
           if (h !== "" && m !== "") {
-            let target = new Date();
-            target.setHours(h, m, 0, 0);
-            if (target < new Date()) target.setDate(target.getDate() + 1);
-            startTime = target.toISOString();
+            let t = new Date();
+            t.setHours(h, m, 0, 0);
+            if (t < new Date()) t.setDate(t.getDate() + 1);
+            startTime = t.toISOString();
           } else {
             startTime = new Date().toISOString();
           }
-        } else {
-          startTime = null;
         }
-
-        await remoteClient
+        await client
           .from("live_scores")
           .update({
             timer_status: running ? "running" : "stopped",
-            timer_end: startTime, // This acts as the "Master Start Time"
+            timer_end: startTime,
             interval_mins: document.getElementById("time").value,
             rest_secs: document.getElementById("rest").value,
             final_mode: document.getElementById("finalMode").checked,
+            show_progress: document.getElementById("showProgress").checked,
           })
           .eq("id", 1);
       }
+
+      // --- INITIALIZE ---
+      client
+        .channel("master")
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "live_scores" },
+          (p) => (syncData = p.new)
+        )
+        .subscribe();
+
+      async function init() {
+        const { data } = await client.from("live_scores").select("*").eq("id", 1).single();
+        syncData = data;
+        setInterval(tick, 200); // Update phone monitor 5 times a second
+      }
+      init();
     </script>
   </body>
 </html>
