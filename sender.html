@@ -1,10 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="config.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
@@ -22,23 +19,22 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: 10px;
+        padding: 15px;
         margin: 0;
       }
 
-      /* LIVE MONITOR: Matches index.html logic */
+      /* --- LIVE PREVIEW BOX (Matches actual index.html) --- */
       .monitor {
         width: 100%;
         max-width: 400px;
-        height: 140px;
+        height: 180px;
         background: #000;
         border-radius: 15px;
         margin-bottom: 12px;
-        border: 2px solid #334155;
         position: relative;
         overflow: hidden;
+        border: 1px solid #334155;
         display: flex;
-        flex-direction: column;
         justify-content: center;
         align-items: center;
       }
@@ -48,51 +44,52 @@
         left: 10px;
         font-size: 0.6rem;
         color: #475569;
-        font-weight: 800;
+        z-index: 20;
+        letter-spacing: 1px;
       }
 
       #mon-broadcast {
-        width: 80%;
+        position: absolute;
+        top: 15px;
+        width: 90%;
         text-align: center;
-        font-size: 0.7rem;
+        font-size: 0.8rem;
         color: var(--accent);
-        font-weight: 800;
+        font-weight: bold;
         text-transform: uppercase;
-        margin-top: 10px;
         opacity: 0;
-        transition: opacity 0.3s;
+        transition: opacity 0.4s ease;
+        z-index: 10;
       }
 
       #mon-timer-container {
-        flex-grow: 1;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+        transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
       }
       #mon-timer {
         font-family: "Arial Black", sans-serif;
         font-size: 3rem;
-        line-height: 1;
+        line-height: 0.8;
         color: #fff;
       }
 
-      /* Controls */
+      /* --- CONTROLLER PANELS --- */
       .panel {
         background: var(--card);
-        padding: 15px;
-        border-radius: 18px;
+        padding: 18px;
+        border-radius: 20px;
         width: 100%;
         max-width: 400px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
         box-sizing: border-box;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
       }
       .section-title {
-        font-size: 0.6rem;
+        font-size: 0.65rem;
         color: var(--accent);
         font-weight: 800;
+        letter-spacing: 1px;
         text-transform: uppercase;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
         display: block;
       }
 
@@ -100,80 +97,123 @@
         background: #334155;
         border: 1px solid #475569;
         color: white;
-        padding: 10px;
+        padding: 12px;
         border-radius: 10px;
-        font-size: 0.9rem;
+        font-size: 1rem;
         width: 100%;
         box-sizing: border-box;
         resize: none;
+        margin-bottom: 8px;
       }
-      .btn-row {
+      .broadcast-btns {
         display: flex;
         gap: 8px;
-        margin-top: 8px;
-      }
-      .btn {
-        border: none;
-        border-radius: 10px;
-        font-weight: 800;
-        cursor: pointer;
-        transition: 0.2s;
-      }
-      .btn-push {
-        background: var(--accent);
-        color: #0f172a;
-        padding: 10px;
-        flex: 2;
-        font-size: 0.8rem;
-      }
-      .btn-clear {
-        background: #475569;
-        color: white;
-        padding: 10px;
-        flex: 1;
-        font-size: 0.8rem;
       }
 
       .opt {
-        margin: 6px 0;
+        margin: 8px 0;
         display: flex;
         justify-content: space-between;
         align-items: center;
         background: rgba(0, 0, 0, 0.2);
-        padding: 8px 12px;
-        border-radius: 10px;
+        padding: 10px 14px;
+        border-radius: 12px;
+      }
+      label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #94a3b8;
       }
       input[type="number"] {
         background: #334155;
         border: 1px solid #475569;
         color: white;
-        padding: 5px;
-        border-radius: 5px;
-        width: 50px;
+        padding: 8px;
+        border-radius: 8px;
+        font-size: 1.1rem;
+        width: 65px;
         text-align: center;
       }
-
-      .btn-main {
-        width: 100%;
-        padding: 15px;
-        font-size: 1rem;
-        margin-top: 10px;
-        color: white;
+      input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        accent-color: var(--accent);
+        cursor: pointer;
       }
+
+      .grid-time {
+        display: flex;
+        gap: 6px;
+      }
+      .grid-time input {
+        width: 50px;
+      }
+
+      .btn-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+      }
+      .btn {
+        width: 100%;
+        padding: 16px;
+        border: none;
+        border-radius: 12px;
+        font-size: 1.1rem;
+        font-weight: 800;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn:disabled {
+        opacity: 0.15;
+        cursor: not-allowed;
+        filter: grayscale(1);
+      }
+
       .btn-start {
         background: var(--green);
+        color: white;
       }
       .btn-stop {
         background: var(--red);
+        color: white;
       }
-      .is-locked {
-        opacity: 0.3;
-        pointer-events: none;
+      .btn-push {
+        background: var(--accent);
+        color: #0f172a;
+        font-size: 0.85rem;
+        padding: 12px;
+      }
+      .btn-clear {
+        background: #475569;
+        color: white;
+        font-size: 0.85rem;
+        padding: 12px;
+      }
+
+      .btn-lock {
+        width: auto;
+        min-width: 180px;
+        padding: 10px 20px;
+        font-size: 0.75rem;
+        background: #475569;
+        color: #f1f5f9;
+        border-radius: 30px;
+        border: none;
+        margin-top: 10px;
+        text-transform: uppercase;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .btn-lock.is-locked {
+        background: rgba(239, 68, 68, 0.15);
+        color: var(--red);
+        border: 1px solid var(--red);
       }
     </style>
   </head>
   <body>
-    <div class="monitor" id="monitorBox">
+    <div class="monitor">
       <div id="mon-label">LIVE PREVIEW</div>
       <div id="mon-broadcast"></div>
       <div id="mon-timer-container">
@@ -181,63 +221,66 @@
       </div>
     </div>
 
-    <div class="panel" id="ctrlPanel">
-      <span class="section-title">Broadcast</span>
-      <textarea id="broadcastInput" rows="2" placeholder="Message..."></textarea>
-      <div class="btn-row">
-        <button class="btn btn-push" onclick="pushBroadcast()">PUSH</button>
-        <button class="btn btn-clear" onclick="clearBroadcast()">RESET</button>
+    <div class="panel">
+      <span class="section-title">Broadcast Message</span>
+      <textarea id="broadcastInput" rows="2" placeholder="Message to display..."></textarea>
+      <div class="broadcast-btns">
+        <button class="btn btn-push" style="flex: 2" onclick="pushBroadcast()">
+          PUSH TO SCREEN
+        </button>
+        <button class="btn btn-clear" style="flex: 1" onclick="clearBroadcast()">RESET</button>
       </div>
     </div>
 
-    <div class="panel" id="timerPanel">
+    <div class="panel">
       <span class="section-title">Timer Setup</span>
-      <div class="opt"><label>WORK (MIN)</label><input id="time" type="number" value="5" /></div>
-      <div class="opt"><label>REST (SEC)</label><input id="rest" type="number" value="15" /></div>
+      <div class="opt">
+        <label>INTERVAL (MIN)</label>
+        <input id="time" type="number" value="5" />
+      </div>
+      <div class="opt">
+        <label>REST (SEC)</label>
+        <input id="rest" type="number" value="15" />
+      </div>
+      <div class="opt">
+        <label>START TIME</label>
+        <div class="grid-time">
+          <input id="h" type="number" placeholder="HH" />
+          <input id="m" type="number" placeholder="MM" />
+        </div>
+      </div>
+
       <div style="display: flex; gap: 10px">
-        <div class="opt" style="flex: 1">
+        <div class="opt" style="flex: 1; margin: 5px 0">
           <label>FINAL</label><input type="checkbox" id="finalMode" />
         </div>
-        <div class="opt" style="flex: 1">
-          <label>BAR</label><input type="checkbox" id="showProgress" />
+        <div class="opt" style="flex: 1; margin: 5px 0">
+          <label>PROG.</label><input type="checkbox" id="showProgress" />
         </div>
       </div>
+
       <div class="btn-row">
-        <button id="startBtn" class="btn btn-main btn-start" onclick="updateMaster(true)">
-          START
-        </button>
-        <button id="stopBtn" class="btn btn-main btn-stop" onclick="updateMaster(false)">
-          RESET
-        </button>
+        <button id="startBtn" class="btn btn-start" onclick="updateMaster(true)">START</button>
+        <button id="stopBtn" class="btn btn-stop" onclick="updateMaster(false)">RESET</button>
       </div>
-      <button
-        id="lockBtn"
-        style="
-          width: 100%;
-          background: none;
-          border: none;
-          color: #475569;
-          font-size: 0.7rem;
-          margin-top: 10px;
-        "
-        onclick="toggleDbLock()"
-      >
-        TAP TO LOCK DATABASE
-      </button>
+
+      <center>
+        <button id="lockBtn" class="btn-lock" onclick="toggleDbLock()">Tap to Lock</button>
+      </center>
     </div>
 
     <script>
       const client = supabase.createClient(SB_URL, SB_KEY);
       let syncData = null;
 
+      async function toggleDbLock() {
+        const newLockStatus = !syncData.is_locked;
+        await client.from("live_scores").update({ is_locked: newLockStatus }).eq("id", 1);
+      }
+
       async function pushBroadcast() {
-        const val = document.getElementById("broadcast-text")
-          ? ""
-          : document.getElementById("broadcastInput").value;
-        await client
-          .from("live_scores")
-          .update({ broadcast_text: document.getElementById("broadcastInput").value })
-          .eq("id", 1);
+        const text = document.getElementById("broadcastInput").value;
+        await client.from("live_scores").update({ broadcast_text: text }).eq("id", 1);
       }
 
       async function clearBroadcast() {
@@ -246,21 +289,31 @@
       }
 
       async function updateMaster(running) {
+        if (syncData.is_locked) return;
+        let startTime = null;
+        const h = document.getElementById("h").value,
+          m = document.getElementById("m").value;
+        if (running) {
+          if (h !== "" && m !== "") {
+            let t = new Date();
+            t.setHours(h, m, 0, 0);
+            if (t < new Date()) t.setDate(t.getDate() + 1);
+            startTime = t.toISOString();
+          } else {
+            startTime = new Date().toISOString();
+          }
+        }
         await client
           .from("live_scores")
           .update({
             timer_status: running ? "running" : "stopped",
-            timer_end: running ? new Date().toISOString() : null,
+            timer_end: startTime,
             interval_mins: document.getElementById("time").value,
             rest_secs: document.getElementById("rest").value,
             final_mode: document.getElementById("finalMode").checked,
             show_progress: document.getElementById("showProgress").checked,
           })
           .eq("id", 1);
-      }
-
-      async function toggleDbLock() {
-        await client.from("live_scores").update({ is_locked: !syncData.is_locked }).eq("id", 1);
       }
 
       function format(s) {
@@ -272,60 +325,59 @@
       function tick() {
         if (!syncData) return;
 
-        // 1. Update Monitor UI (Colors and Text)
-        const monText = document.getElementById("mon-broadcast");
-        const monTimer = document.getElementById("mon-timer");
-        const monContainer = document.getElementById("mon-timer-container");
-        const lockBtn = document.getElementById("lockBtn");
+        // 1. Update Preview Broadcast
+        const monB = document.getElementById("mon-broadcast");
+        const monTCont = document.getElementById("mon-timer-container");
+        const monT = document.getElementById("mon-timer");
 
-        monText.innerText = syncData.broadcast_text || "";
-        monText.style.opacity = syncData.broadcast_text ? "1" : "0";
+        monB.innerText = syncData.broadcast_text || "";
+        monB.style.opacity = syncData.broadcast_text ? "1" : "0";
 
-        // Match the "Push Down" logic
-        monContainer.style.transform = syncData.broadcast_text
-          ? "translateY(10px)"
-          : "translateY(0)";
+        // 2. Update Preview Slide (Matches the 8vh shift of index.html)
+        monTCont.style.transform = syncData.broadcast_text ? "translateY(15px)" : "translateY(0)";
 
-        // Lock UI
-        lockBtn.innerText = syncData.is_locked ? "🔒 DATABASE LOCKED" : "🔓 TAP TO LOCK DATABASE";
-        document.getElementById("ctrlPanel").classList.toggle("is-locked", syncData.is_locked);
-        document.getElementById("timerPanel").classList.toggle("is-locked", syncData.is_locked);
-
+        // 3. Update Preview Timer
         if (syncData.timer_status !== "running") {
-          monTimer.innerText = "0:00";
-          monTimer.style.color = "#334155";
-          return;
-        }
-
-        const now = Date.now(),
-          master = new Date(syncData.timer_end).getTime();
-        if (now < master) {
-          monTimer.innerText = format(Math.ceil((master - now) / 1000));
-          monTimer.style.color = "#38bdf8";
+          monT.innerText = "0:00";
+          monT.style.color = "#333";
         } else {
-          const work = syncData.interval_mins * 60,
-            rest = parseInt(syncData.rest_secs);
-          const elapsed = Math.floor((now - master) / 1000);
-          if (syncData.final_mode) {
-            const rem = Math.max(0, work - elapsed);
-            monTimer.innerText = format(rem);
-            monTimer.style.color = rem <= 10 ? "#ef4444" : "#fff";
+          const now = Date.now(),
+            master = new Date(syncData.timer_end).getTime();
+          if (now < master) {
+            monT.innerText = format(Math.ceil((master - now) / 1000));
+            monT.style.color = "#38bdf8";
           } else {
-            const cycle = work + rest,
-              t = elapsed % cycle;
-            if (t < work) {
-              monTimer.innerText = format(work - t);
-              monTimer.style.color = "#fff";
+            const work = syncData.interval_mins * 60,
+              rest = parseInt(syncData.rest_secs);
+            const elapsed = Math.floor((now - master) / 1000);
+            if (syncData.final_mode) {
+              const r = Math.max(0, work - elapsed);
+              monT.innerText = format(r);
+              monT.style.color = r <= 10 ? "#ef4444" : "#fff";
             } else {
-              monTimer.innerText = rest - (t - work);
-              monTimer.style.color = "#ef4444";
+              const cycle = work + rest,
+                time = elapsed % cycle;
+              if (time < work) {
+                monT.innerText = format(work - time);
+                monT.style.color = "#fff";
+              } else {
+                monT.innerText = rest - (time - work);
+                monT.style.color = "#ef4444";
+              }
             }
           }
         }
+
+        // 4. Update UI State
+        document.getElementById("startBtn").disabled = syncData.is_locked;
+        document.getElementById("stopBtn").disabled = syncData.is_locked;
+        const lb = document.getElementById("lockBtn");
+        lb.innerHTML = syncData.is_locked ? "🔒 Locked" : "🔓 Tap to Lock";
+        lb.className = "btn-lock " + (syncData.is_locked ? "is-locked" : "");
       }
 
       client
-        .channel("any")
+        .channel("master")
         .on(
           "postgres_changes",
           { event: "UPDATE", schema: "public", table: "live_scores" },
