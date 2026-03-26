@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta charset="UTF-8" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
+    <title>Live Timer</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
     <style>
@@ -12,6 +14,7 @@
         --bg: #000;
         --text: #fff;
         --accent: #38bdf8;
+        --red: #ef4444;
       }
       body,
       html {
@@ -34,7 +37,6 @@
         position: relative;
       }
 
-      /* BROADCAST: Floats at the top, does not push layout until told */
       #broadcast-overlay {
         position: absolute;
         top: 6vh;
@@ -56,7 +58,6 @@
         word-wrap: break-word;
       }
 
-      /* TIMER: Perfectly centered by default */
       #timer {
         display: flex;
         justify-content: center;

@@ -1,30 +1,40 @@
 const client = supabase.createClient(SB_URL, SB_KEY);
 let syncData = null;
-let lastBroadcastText = ""; 
-let lastSec = -1; // Guard so it only beeps once per second
+let lastBroadcastText = "";
+let lastSec = -1; 
 
-// 1. AUDIO FILES (Declared globally just like your old file)
-var msgSound = new Audio("./file/notification.mp3");
-var beep1 = new Audio("./file/beep-1.mp3");
-var beep5 = new Audio("./file/countdown.mp3");
-var beepEnd = new Audio("./file/beep-09.mp3");
+// --- AUDIO SETUP ---
+const msgSound = new Audio("file/notification.mp3");
+const beep1 = new Audio("file/beep-1.mp3");
+const beep5 = new Audio("file/countdown.mp3");
+const beepEnd = new Audio("file/beep-09.mp3");
 
-// 2. AUDIO LOGIC (Replicating your old load/play logic)
-function checkAudio(s) {
+function checkAudio(s, phase) {
     if (s !== lastSec) {
-        if (s === 65) beep1.load();
-        if (s === 60) beep1.play().catch(e => console.log("Click page to allow audio"));
+        if (phase === 'work' || phase === 'pre') {
+            if (s === 65) beep1.load();
+            if (s === 60) beep1.play().catch(e => {});
+            if (s === 10) beep5.load();
+            if (s === 5) beep5.play().catch(e => {});
+        }
         
-        if (s === 10) beep5.load();
-        if (s === 5) beep5.play().catch(e => console.log("Click page to allow audio"));
-        
-        if (s === 0) beepEnd.play().catch(e => console.log("Click page to allow audio"));
-        
+        if (phase === 'rest') {
+            if (s === 5) beepEnd.load();
+            if (s === 0) beepEnd.play().catch(e => {});
+        }
+
+        if (phase === 'final') {
+            if (s === 65) beep1.load();
+            if (s === 60) beep1.play().catch(e => {});
+            if (s === 10) beep5.load();
+            if (s === 5) beep5.play().catch(e => {});
+            if (s === 0) beepEnd.play().catch(e => {});
+        }
         lastSec = s;
     }
 }
 
-// 3. BROADCAST UI & SOUND
+// --- UI UPDATES ---
 function updateBroadcastUI(text) {
     const container = document.getElementById("broadcast-overlay");
     const target = document.getElementById("broadcast-text");
@@ -33,18 +43,17 @@ function updateBroadcastUI(text) {
     lastBroadcastText = text;
 
     if (!text || text.trim() === "") {
-        container.style.opacity = "0"; 
+        container.style.opacity = "0";
         return;
     }
 
-    // Play notification sound when a new message pops up
     msgSound.currentTime = 0; 
     msgSound.play().catch(e => {});
 
     target.innerText = text;
-    container.style.opacity = "1"; 
+    container.style.opacity = "1";
 
-    let fontSize = 7.5; 
+    let fontSize = 7; 
     target.style.fontSize = fontSize + "vw";
 
     let safety = 0;
@@ -55,7 +64,6 @@ function updateBroadcastUI(text) {
     }
 }
 
-// 4. TIMER UI (Smooth Slide & Font Scale)
 function updateTimerUI(text) {
     const display = document.getElementById("demo");
     const container = document.getElementById("timer");
@@ -81,7 +89,7 @@ function format(s) {
     return m + ":" + (sec < 10 ? '0' + sec : sec);
 }
 
-// 5. THE MAIN TICK LOOP
+// --- MAIN LOOP ---
 function tick() {
     if (!syncData) return;
     const display = document.getElementById("demo");
@@ -98,51 +106,44 @@ function tick() {
         const master = new Date(syncData.timer_end).getTime();
 
         if (now < master) {
-            // COUNTDOWN TO START
             const diff = Math.ceil((master - now) / 1000);
             timeText = format(diff);
             color = "#38bdf8";
             bar.style.width = "100%";
-            checkAudio(diff); // Check sounds
-
+            checkAudio(diff, 'pre');
         } else {
             const work = syncData.interval_mins * 60;
             const rest = parseInt(syncData.rest_secs);
             const elapsed = Math.floor((now - master) / 1000);
 
             if (syncData.final_mode) {
-                // FINAL MODE
                 const rem = Math.max(0, work - elapsed);
                 timeText = format(rem);
                 color = rem <= 10 ? "#ef4444" : "#fff";
                 bar.style.width = (rem / work) * 100 + "%";
-                checkAudio(rem); // Check sounds
-
+                checkAudio(rem, 'final');
             } else {
-                // INTERVAL MODE
                 const cycle = work + rest;
                 const t = elapsed % cycle;
-                
                 if (t < work) {
                     const rem = work - t;
                     timeText = format(rem);
                     bar.style.width = (rem / work) * 100 + "%";
                     bar.style.backgroundColor = "#38bdf8";
-                    checkAudio(rem); // Check sounds
-
+                    checkAudio(rem, 'work');
                 } else {
                     const rem = rest - (t - work);
                     timeText = rem.toString();
                     color = "#ef4444";
                     bar.style.width = (rem / rest) * 100 + "%";
                     bar.style.backgroundColor = "#ef4444";
-                    checkAudio(rem); // Check sounds
+                    checkAudio(rem, 'rest');
                 }
             }
         }
     } else {
         color = "#222"; 
-        lastSec = -1; // Reset guard if stopped
+        lastSec = -1;
     }
 
     display.innerText = timeText;
@@ -151,7 +152,10 @@ function tick() {
     barContainer.style.visibility = syncData.show_progress ? "visible" : "hidden";
 }
 
-client.channel('master').on('postgres_changes', {event:'UPDATE', schema:'public', table:'live_scores'}, p => syncData = p.new).subscribe();
+// Listen ONLY to ID: 1
+client.channel('master').on('postgres_changes', {event:'UPDATE', schema:'public', table:'live_scores'}, p => {
+    syncData = p.new;
+}).subscribe();
 
 async function init() {
     const { data } = await client.from('live_scores').select('*').eq('id', 1).single();

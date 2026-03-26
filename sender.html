@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Timer Controller</title>
     <script src="config.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
@@ -23,7 +25,6 @@
         margin: 0;
       }
 
-      /* --- LIVE PREVIEW BOX (Matches actual index.html) --- */
       .monitor {
         width: 100%;
         max-width: 400px;
@@ -61,7 +62,6 @@
         transition: opacity 0.4s ease;
         z-index: 10;
       }
-
       #mon-timer-container {
         transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
       }
@@ -72,7 +72,6 @@
         color: #fff;
       }
 
-      /* --- CONTROLLER PANELS --- */
       .panel {
         background: var(--card);
         padding: 18px;
@@ -124,7 +123,8 @@
         font-weight: 600;
         color: #94a3b8;
       }
-      input[type="number"] {
+      input[type="number"],
+      input[type="text"] {
         background: #334155;
         border: 1px solid #475569;
         color: white;
@@ -190,7 +190,6 @@
         font-size: 0.85rem;
         padding: 12px;
       }
-
       .btn-lock {
         width: auto;
         min-width: 180px;
@@ -216,9 +215,7 @@
     <div class="monitor">
       <div id="mon-label">LIVE PREVIEW</div>
       <div id="mon-broadcast"></div>
-      <div id="mon-timer-container">
-        <div id="mon-timer">0:00</div>
-      </div>
+      <div id="mon-timer-container"><div id="mon-timer">0:00</div></div>
     </div>
 
     <div class="panel">
@@ -235,13 +232,9 @@
     <div class="panel">
       <span class="section-title">Timer Setup</span>
       <div class="opt">
-        <label>INTERVAL (MIN)</label>
-        <input id="time" type="number" value="5" />
+        <label>INTERVAL (MIN)</label><input id="time" type="number" value="5" />
       </div>
-      <div class="opt">
-        <label>REST (SEC)</label>
-        <input id="rest" type="number" value="15" />
-      </div>
+      <div class="opt"><label>REST (SEC)</label><input id="rest" type="number" value="15" /></div>
       <div class="opt">
         <label>START TIME</label>
         <div class="grid-time">
@@ -274,8 +267,8 @@
       let syncData = null;
 
       async function toggleDbLock() {
-        const newLockStatus = !syncData.is_locked;
-        await client.from("live_scores").update({ is_locked: newLockStatus }).eq("id", 1);
+        if (!syncData) return;
+        await client.from("live_scores").update({ is_locked: !syncData.is_locked }).eq("id", 1);
       }
 
       async function pushBroadcast() {
@@ -289,7 +282,7 @@
       }
 
       async function updateMaster(running) {
-        if (syncData.is_locked) return;
+        if (syncData && syncData.is_locked) return;
         let startTime = null;
         const h = document.getElementById("h").value,
           m = document.getElementById("m").value;
@@ -308,8 +301,8 @@
           .update({
             timer_status: running ? "running" : "stopped",
             timer_end: startTime,
-            interval_mins: document.getElementById("time").value,
-            rest_secs: document.getElementById("rest").value,
+            interval_mins: document.getElementById("time").value || 0,
+            rest_secs: document.getElementById("rest").value || 0,
             final_mode: document.getElementById("finalMode").checked,
             show_progress: document.getElementById("showProgress").checked,
           })
@@ -325,18 +318,14 @@
       function tick() {
         if (!syncData) return;
 
-        // 1. Update Preview Broadcast
         const monB = document.getElementById("mon-broadcast");
         const monTCont = document.getElementById("mon-timer-container");
         const monT = document.getElementById("mon-timer");
 
         monB.innerText = syncData.broadcast_text || "";
         monB.style.opacity = syncData.broadcast_text ? "1" : "0";
-
-        // 2. Update Preview Slide (Matches the 8vh shift of index.html)
         monTCont.style.transform = syncData.broadcast_text ? "translateY(15px)" : "translateY(0)";
 
-        // 3. Update Preview Timer
         if (syncData.timer_status !== "running") {
           monT.innerText = "0:00";
           monT.style.color = "#333";
@@ -368,7 +357,6 @@
           }
         }
 
-        // 4. Update UI State
         document.getElementById("startBtn").disabled = syncData.is_locked;
         document.getElementById("stopBtn").disabled = syncData.is_locked;
         const lb = document.getElementById("lockBtn");
