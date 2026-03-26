@@ -1,44 +1,46 @@
 const client = supabase.createClient(SB_URL, SB_KEY);
 let syncData = null;
+let lastSec = -1;
 
 // Audio Assets
-const beep1 = new Audio("./file/beep-1.mp3");
-const beep5 = new Audio("./file/countdown.mp3");
-const beep15 = new Audio("./file/beep-09.mp3");
+const beep1 = new Audio("./beep-1.mp3");
+const beep5 = new Audio("./countdown.mp3");
+const beepEnd = new Audio("./beep-09.mp3");
 
-/**
- * AUTO-SCALING FONT LOGIC
- * Calculates font size based on character count to ensure 
- * long strings like mmmmmm:ss always fit.
- */
 function updateResponsiveFont(text) {
     const display = document.getElementById("demo");
     const charCount = text.toString().length;
-    let fontSizeVw;
+    
+    // We use 150 instead of 170 to give a safety margin on the left/right
+    let fontSizeVw = 150 / charCount;
 
-    if (charCount <= 4) {
-        fontSizeVw = 45; // e.g., 0:00
-    } else if (charCount <= 5) {
-        fontSizeVw = 38; // e.g., 00:00
-    } else {
-        // Dynamic shrink: 170/charCount keeps text at ~90% width
-        fontSizeVw = 170 / charCount;
-    }
+    // Cap the size for short strings so they don't look ridiculous
+    if (charCount <= 4) fontSizeVw = Math.min(fontSizeVw, 42); 
+    if (charCount <= 2) fontSizeVw = Math.min(fontSizeVw, 55);
 
     display.style.fontSize = fontSizeVw + "vw";
 
-    // Safety check for vertical height overflow
-    if (display.offsetHeight > window.innerHeight * 0.8) {
-        display.style.fontSize = "70vh";
+    // HEIGHT SAFETY CHECK
+    // If the font is too tall (overflowing top/bottom), we switch to VH
+    if (display.offsetHeight > window.innerHeight * 0.75) {
+        display.style.fontSize = "75vh";
     }
 }
 
 function format(s) {
     const m = Math.floor(s / 60);
     const sec = s % 60;
-    const timeString = `${m}:${sec < 10 ? '0' + sec : sec}`;
-    updateResponsiveFont(timeString);
+    const timeString = m + ":" + (sec < 10 ? '0' + sec : sec);
     return timeString;
+}
+
+function checkAudio(s) {
+    if (s !== lastSec) {
+        if (s === 60) beep1.play();
+        if (s === 5) beep5.play();
+        if (s === 0) beepEnd.play();
+        lastSec = s;
+    }
 }
 
 function tick() {
@@ -46,93 +48,73 @@ function tick() {
 
     const display = document.getElementById("demo");
     const broadcast = document.getElementById("broadcast-overlay");
-    const progress = document.getElementById("progress-bar");
     const bar = document.getElementById("progress-done");
+    const barContainer = document.getElementById("progress-bar");
 
-    // Update Broadcast Text
     broadcast.innerText = syncData.broadcast_text || "";
+    barContainer.style.visibility = syncData.show_progress ? "visible" : "hidden";
 
-    // Handle Stopped State
     if (syncData.timer_status !== 'running') {
-        display.innerText = "START";
-        display.style.color = "#fff";
-        updateResponsiveFont("START");
-        progress.style.visibility = "hidden";
+        display.innerText = "0:00";
+        display.style.color = "#333";
+        updateResponsiveFont("0:00");
         return;
     }
 
-    // Timer Logic
     const now = Date.now();
     const master = new Date(syncData.timer_end).getTime();
-    progress.style.visibility = syncData.show_progress ? "visible" : "hidden";
 
     if (now < master) {
-        // COUNTDOWN TO START
         const diff = Math.ceil((master - now) / 1000);
         display.innerText = diff;
         display.style.color = "#38bdf8";
         updateResponsiveFont(diff);
-        
-        // Progress Bar for countdown
         bar.style.width = "100%";
-        
-        if(diff === 5) beep5.play();
     } else {
-        // LIVE SESSIONS
         const work = syncData.interval_mins * 60;
         const rest = parseInt(syncData.rest_secs);
         const elapsed = Math.floor((now - master) / 1000);
 
         if (syncData.final_mode) {
-            // FINAL MODE: Simple Countdown
-            const remaining = Math.max(0, work - elapsed);
-            display.innerText = format(remaining);
-            display.style.color = remaining <= 10 ? "#ef4444" : "#fff";
-            bar.style.width = (remaining / work) * 100 + "%";
-            
-            if(remaining === 60) beep1.play();
-            if(remaining === 5) beep5.play();
+            const rem = Math.max(0, work - elapsed);
+            const str = format(rem);
+            display.innerText = str;
+            display.style.color = rem <= 10 ? "#ef4444" : "#fff";
+            updateResponsiveFont(str);
+            bar.style.width = (rem / work) * 100 + "%";
+            checkAudio(rem);
         } else {
-            // INTERVAL MODE: Work/Rest Cycles
             const cycle = work + rest;
-            const timeInCycle = elapsed % cycle;
+            const time = elapsed % cycle;
 
-            if (timeInCycle < work) {
-                // WORK PERIOD
-                const remaining = work - timeInCycle;
-                display.innerText = format(remaining);
+            if (time < work) {
+                const rem = work - time;
+                const str = format(rem);
+                display.innerText = str;
                 display.style.color = "#fff";
-                bar.style.width = (remaining / work) * 100 + "%";
-                bar.style.background = "#38bdf8";
-                
-                if(remaining === 60) beep1.play();
-                if(remaining === 5) beep5.play();
+                updateResponsiveFont(str);
+                bar.style.width = (rem / work) * 100 + "%";
+                bar.style.backgroundColor = "#38bdf8";
+                checkAudio(rem);
             } else {
-                // REST PERIOD
-                const remaining = rest - (timeInCycle - work);
-                display.innerText = remaining;
+                const rem = rest - (time - work);
+                display.innerText = rem;
                 display.style.color = "#ef4444";
-                updateResponsiveFont(remaining);
-                bar.style.width = (remaining / rest) * 100 + "%";
-                bar.style.background = "#ef4444";
-                
-                if(remaining === 5) beep15.play();
+                updateResponsiveFont(rem);
+                bar.style.width = (rem / rest) * 100 + "%";
+                bar.style.backgroundColor = "#ef4444";
+                checkAudio(rem);
             }
         }
     }
 }
 
-// Supabase Realtime Subscription
-client.channel('public:live_scores')
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'live_scores' }, payload => {
-        syncData = payload.new;
-    })
-    .subscribe();
+client.channel('master').on('postgres_changes', {event:'UPDATE', schema:'public', table:'live_scores'}, p => syncData = p.new).subscribe();
 
 async function init() {
     const { data } = await client.from('live_scores').select('*').eq('id', 1).single();
     syncData = data;
-    setInterval(tick, 200); // High frequency for smooth progress bar
+    setInterval(tick, 100);
 }
 
 init();
