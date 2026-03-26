@@ -118,12 +118,13 @@ function tick() {
         const master = new Date(syncData.timer_end).getTime();
 
         if (now < master) {
-            // COUNTDOWN TO START
+            // 1. PRE-START PHASE
             const diff = Math.ceil((master - now) / 1000);
             timeText = format(diff);
             color = "#38bdf8";
             bar.style.width = "100%";
-            checkAudio(diff); // Check sounds
+            
+            checkAudio(diff, 'pre'); // <--- Added 'pre'
 
         } else {
             const work = syncData.interval_mins * 60;
@@ -131,38 +132,41 @@ function tick() {
             const elapsed = Math.floor((now - master) / 1000);
 
             if (syncData.final_mode) {
-                // FINAL MODE
+                // 2. FINAL PHASE
                 const rem = Math.max(0, work - elapsed);
                 timeText = format(rem);
                 color = rem <= 10 ? "#ef4444" : "#fff";
                 bar.style.width = (rem / work) * 100 + "%";
-                checkAudio(rem); // Check sounds
+                
+                checkAudio(rem, 'final'); // <--- Added 'final'
 
             } else {
-                // INTERVAL MODE
                 const cycle = work + rest;
                 const t = elapsed % cycle;
-                
                 if (t < work) {
+                    // 3. WORK PHASE
                     const rem = work - t;
                     timeText = format(rem);
                     bar.style.width = (rem / work) * 100 + "%";
                     bar.style.backgroundColor = "#38bdf8";
-                    checkAudio(rem); // Check sounds
+                    
+                    checkAudio(rem, 'work'); // <--- Added 'work'
 
                 } else {
+                    // 4. REST PHASE
                     const rem = rest - (t - work);
                     timeText = rem.toString();
                     color = "#ef4444";
                     bar.style.width = (rem / rest) * 100 + "%";
                     bar.style.backgroundColor = "#ef4444";
-                    checkAudio(rem); // Check sounds
+                    
+                    checkAudio(rem, 'rest'); // <--- Added 'rest'
                 }
             }
         }
     } else {
         color = "#222"; 
-        lastSec = -1; // Reset guard if stopped
+        lastSec = -1;
     }
 
     display.innerText = timeText;
