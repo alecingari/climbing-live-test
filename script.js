@@ -1,112 +1,116 @@
 const client = supabase.createClient(SB_URL, SB_KEY);
 let syncData = null;
-let lastSec = -1;
+let lastBroadcastText = "";
 
-// Audio Assets
-const beep1 = new Audio("./beep-1.mp3");
-const beep5 = new Audio("./countdown.mp3");
-const beepEnd = new Audio("./beep-09.mp3");
+function updateBroadcastUI(text) {
+    const container = document.getElementById("broadcast-overlay");
+    const target = document.getElementById("broadcast-text");
+    
+    if (text === lastBroadcastText) return; 
+    lastBroadcastText = text;
 
-function updateResponsiveFont(text) {
+    if (!text || text.trim() === "") {
+        container.style.opacity = "0";
+        return;
+    }
+
+    target.innerText = text;
+    container.style.opacity = "1";
+
+    let fontSize = 7; 
+    target.style.fontSize = fontSize + "vw";
+
+    let safety = 0;
+    while (target.scrollHeight > container.clientHeight && fontSize > 2 && safety < 25) {
+        fontSize -= 0.4;
+        target.style.fontSize = fontSize + "vw";
+        safety++;
+    }
+}
+
+function updateTimerUI(text) {
     const display = document.getElementById("demo");
+    const container = document.getElementById("timer");
     const charCount = text.toString().length;
     
-    // We use 150 instead of 170 to give a safety margin on the left/right
-    let fontSizeVw = 150 / charCount;
+    // DYNAMIC PUSH: Timer is 0 (centered) when no text, moves to 8vh when text appears
+    let currentShift = (lastBroadcastText !== "") ? 8 : 0; 
+    container.style.transform = `translateY(${currentShift}vh)`;
 
-    // Cap the size for short strings so they don't look ridiculous
-    if (charCount <= 4) fontSizeVw = Math.min(fontSizeVw, 42); 
+    // REDUCED FONT SCALE: Changed 165 to 145 to prevent overflow
+    let fontSizeVw = 145 / charCount;
+    if (charCount <= 4) fontSizeVw = Math.min(fontSizeVw, 40); 
     if (charCount <= 2) fontSizeVw = Math.min(fontSizeVw, 55);
 
     display.style.fontSize = fontSizeVw + "vw";
 
-    // HEIGHT SAFETY CHECK
-    // If the font is too tall (overflowing top/bottom), we switch to VH
-    if (display.offsetHeight > window.innerHeight * 0.75) {
-        display.style.fontSize = "75vh";
+    // HEIGHT CAP: Reduced to 65% of screen to be safe
+    if (display.offsetHeight > window.innerHeight * 0.65) {
+        display.style.fontSize = "65vh";
     }
 }
 
 function format(s) {
     const m = Math.floor(s / 60);
     const sec = s % 60;
-    const timeString = m + ":" + (sec < 10 ? '0' + sec : sec);
-    return timeString;
-}
-
-function checkAudio(s) {
-    if (s !== lastSec) {
-        if (s === 60) beep1.play();
-        if (s === 5) beep5.play();
-        if (s === 0) beepEnd.play();
-        lastSec = s;
-    }
+    return m + ":" + (sec < 10 ? '0' + sec : sec);
 }
 
 function tick() {
     if (!syncData) return;
-
     const display = document.getElementById("demo");
-    const broadcast = document.getElementById("broadcast-overlay");
     const bar = document.getElementById("progress-done");
     const barContainer = document.getElementById("progress-bar");
 
-    broadcast.innerText = syncData.broadcast_text || "";
-    barContainer.style.visibility = syncData.show_progress ? "visible" : "hidden";
+    updateBroadcastUI(syncData.broadcast_text || "");
+    
+    let timeText = "0:00";
+    let color = "#fff";
 
-    if (syncData.timer_status !== 'running') {
-        display.innerText = "0:00";
-        display.style.color = "#333";
-        updateResponsiveFont("0:00");
-        return;
-    }
+    if (syncData.timer_status === 'running') {
+        const now = Date.now();
+        const master = new Date(syncData.timer_end).getTime();
 
-    const now = Date.now();
-    const master = new Date(syncData.timer_end).getTime();
-
-    if (now < master) {
-        const diff = Math.ceil((master - now) / 1000);
-        display.innerText = diff;
-        display.style.color = "#38bdf8";
-        updateResponsiveFont(diff);
-        bar.style.width = "100%";
-    } else {
-        const work = syncData.interval_mins * 60;
-        const rest = parseInt(syncData.rest_secs);
-        const elapsed = Math.floor((now - master) / 1000);
-
-        if (syncData.final_mode) {
-            const rem = Math.max(0, work - elapsed);
-            const str = format(rem);
-            display.innerText = str;
-            display.style.color = rem <= 10 ? "#ef4444" : "#fff";
-            updateResponsiveFont(str);
-            bar.style.width = (rem / work) * 100 + "%";
-            checkAudio(rem);
+        if (now < master) {
+            const diff = Math.ceil((master - now) / 1000);
+            timeText = format(diff);
+            color = "#38bdf8";
+            bar.style.width = "100%";
         } else {
-            const cycle = work + rest;
-            const time = elapsed % cycle;
+            const work = syncData.interval_mins * 60;
+            const rest = parseInt(syncData.rest_secs);
+            const elapsed = Math.floor((now - master) / 1000);
 
-            if (time < work) {
-                const rem = work - time;
-                const str = format(rem);
-                display.innerText = str;
-                display.style.color = "#fff";
-                updateResponsiveFont(str);
+            if (syncData.final_mode) {
+                const rem = Math.max(0, work - elapsed);
+                timeText = format(rem);
+                color = rem <= 10 ? "#ef4444" : "#fff";
                 bar.style.width = (rem / work) * 100 + "%";
-                bar.style.backgroundColor = "#38bdf8";
-                checkAudio(rem);
             } else {
-                const rem = rest - (time - work);
-                display.innerText = rem;
-                display.style.color = "#ef4444";
-                updateResponsiveFont(rem);
-                bar.style.width = (rem / rest) * 100 + "%";
-                bar.style.backgroundColor = "#ef4444";
-                checkAudio(rem);
+                const cycle = work + rest;
+                const t = elapsed % cycle;
+                if (t < work) {
+                    const rem = work - t;
+                    timeText = format(rem);
+                    bar.style.width = (rem / work) * 100 + "%";
+                    bar.style.backgroundColor = "#38bdf8";
+                } else {
+                    const rem = rest - (t - work);
+                    timeText = rem.toString();
+                    color = "#ef4444";
+                    bar.style.width = (rem / rest) * 100 + "%";
+                    bar.style.backgroundColor = "#ef4444";
+                }
             }
         }
+    } else {
+        color = "#222"; 
     }
+
+    display.innerText = timeText;
+    display.style.color = color;
+    updateTimerUI(timeText);
+    barContainer.style.visibility = syncData.show_progress ? "visible" : "hidden";
 }
 
 client.channel('master').on('postgres_changes', {event:'UPDATE', schema:'public', table:'live_scores'}, p => syncData = p.new).subscribe();
@@ -114,7 +118,6 @@ client.channel('master').on('postgres_changes', {event:'UPDATE', schema:'public'
 async function init() {
     const { data } = await client.from('live_scores').select('*').eq('id', 1).single();
     syncData = data;
-    setInterval(tick, 100);
+    setInterval(tick, 150); 
 }
-
 init();
