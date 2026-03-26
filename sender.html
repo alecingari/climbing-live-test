@@ -35,14 +35,29 @@
     <button class="btn z" onclick="updateDB('ZONE')">ZONE</button>
 
     <script>
-      const SUPABASE_URL = "https://lissscvlvmzjswsykvoq.supabase.co";
-      const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxpc3NzY3Zsdm16anN3c3lrdm9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0ODAyNTAsImV4cCI6MjA5MDA1NjI1MH0.Muj9vosIuV1bFJQ5_iR9JkQ22gzvBcc70kbjnBFwBbM";
-      const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-      async function updateDB(val) {
-        // This updates the first row in your table
-        await supabase.from("live_scores").update({ score_value: val }).eq("id", 1);
-      }
+        // 1. Initialize Supabase - USE A UNIQUE NAME (myClient) to avoid the "already declared" error
+        const SB_URL = 'lissscvlvmzjswsykvoq';
+        const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxpc3NzY3Zsdm16anN3c3lrdm9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0ODAyNTAsImV4cCI6MjA5MDA1NjI1MH0.Muj9vosIuV1bFJQ5_iR9JkQ22gzvBcc70kbjnBFwBbM';
+        
+        // We name the variable 'myClient' so it doesn't conflict with the 'supabase' library name
+        const myClient = supabase.createClient(SB_URL, SB_KEY);
+    
+        // 2. The function to update the score
+        async function updateDB(val) {
+            console.log("Attempting to send:", val);
+            
+            // We use 'upsert' so it creates the row if ID 1 is missing
+            const { data, error } = await myClient
+                .from('live_scores')
+                .upsert({ id: 1, score_value: val });
+    
+            if (error) {
+                console.error("Supabase Error:", error.message);
+                alert("Error: " + error.message);
+            } else {
+                console.log("Success! Database updated to:", val);
+            }
+        }
     </script>
   </body>
 </html>
