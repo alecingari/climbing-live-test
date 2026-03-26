@@ -232,7 +232,7 @@
     <div class="panel">
       <span class="section-title">Timer Setup</span>
       <div class="opt">
-        <label>INTERVAL (MIN)</label><input id="time" type="number" value="5" />
+        <label>INTERVAL (MIN)</label><input id="time" type="number" step="any" value="5" />
       </div>
       <div class="opt"><label>REST (SEC)</label><input id="rest" type="number" value="15" /></div>
       <div class="opt">
@@ -301,7 +301,8 @@
           .update({
             timer_status: running ? "running" : "stopped",
             timer_end: startTime,
-            interval_mins: document.getElementById("time").value || 0,
+            // Allows commas or periods for decimal inputs
+            interval_mins: parseFloat(document.getElementById("time").value.replace(",", ".")) || 0,
             rest_secs: document.getElementById("rest").value || 0,
             final_mode: document.getElementById("finalMode").checked,
             show_progress: document.getElementById("showProgress").checked,
@@ -333,23 +334,29 @@
           const now = Date.now(),
             master = new Date(syncData.timer_end).getTime();
           if (now < master) {
+            // PRE-START (Blue countdown)
             monT.innerText = format(Math.ceil((master - now) / 1000));
             monT.style.color = "#38bdf8";
           } else {
             const work = syncData.interval_mins * 60,
               rest = parseInt(syncData.rest_secs);
             const elapsed = Math.floor((now - master) / 1000);
+
             if (syncData.final_mode) {
+              // FINAL MODE (Always white, no red)
               const r = Math.max(0, work - elapsed);
               monT.innerText = format(r);
-              monT.style.color = r <= 10 ? "#ef4444" : "#fff";
+              monT.style.color = "#fff";
             } else {
+              // INTERVAL MODE
               const cycle = work + rest,
                 time = elapsed % cycle;
               if (time < work) {
+                // WORK (White)
                 monT.innerText = format(work - time);
                 monT.style.color = "#fff";
               } else {
+                // REST (Red)
                 monT.innerText = rest - (time - work);
                 monT.style.color = "#ef4444";
               }
