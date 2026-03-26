@@ -2,7 +2,7 @@ const client = supabase.createClient(SB_URL, SB_KEY);
 let syncData = null;
 let lastBroadcastText = "";
 let lastSec = -1; 
-let lastPhase = ""; // Tracks the phase to catch the transition
+let lastPhase = ""; // Tracks the phase to catch the transitions
 
 // --- AUDIO SETUP ---
 var msgSound = new Audio("file/notification.mp3");
@@ -10,16 +10,31 @@ var beep1 = new Audio("file/beep-1.mp3");
 var beep5 = new Audio("file/countdown.mp3");
 var beepEnd = new Audio("file/beep-09.mp3");
 
-// Force preload to prevent the 2-second delay on Vercel
+// Force preload
 msgSound.preload = "auto";
 beep1.preload = "auto";
 beep5.preload = "auto";
 beepEnd.preload = "auto";
 
 // --- AUDIO LOGIC ---
-function checkAudio(s, phase) {
+// Abbiamo aggiunto "elapsed" per capire se il timer è partito istantaneamente (secondo 0)
+function checkAudio(s, phase, elapsed) {
     
-    // TRANSITION CATCHER: Fires exactly when Rest ends and Work begins (matches secRest < 0.5)
+    // Carica il suono del "VIA!" un secondo prima che finisca il conto alla rovescia
+    if (phase === 'pre' && s === 1) {
+        beepEnd.load();
+    }
+
+    // TRANSITION 1: "GO!" Beep all'inizio del timer.
+    // Suona SE: ha appena finito la fase 'pre', OPPURE se è partito istantaneamente (elapsed === 0)
+    if ((lastPhase === 'pre' && (phase === 'work' || phase === 'final')) || 
+        (lastPhase === '' && (phase === 'work' || phase === 'final'))) {
+        console.log("Transition: START! Playing Start beep");
+        beepEnd.currentTime = 0;
+        beepEnd.play().catch(e => console.log("Audio blocked"));
+    }
+
+    // TRANSITION 2: "GO!" per i round successivi (Da Rest a Work)
     if (lastPhase === 'rest' && phase === 'work') {
         console.log("Transition: Rest -> Work. Playing Rest End beep");
         beepEnd.currentTime = 0;
@@ -69,12 +84,6 @@ function checkAudio(s, phase) {
                 beep5.play().catch(e => {});
             }
             
-            if (s === 5) beepEnd.load();
-            if (s === 0) { 
-                console.log("Playing Final End beep");
-                beepEnd.currentTime = 0;
-                beepEnd.play().catch(e => {});
-            }
         }
         
         lastSec = s;
@@ -158,10 +167,11 @@ function tick() {
             // PRE-START
             const diff = Math.ceil((master - now) / 1000);
             timeText = format(diff);
-            color = "#38bdf8";
+            color = "#38bdf8"; 
             bar.style.width = "100%";
             
-            checkAudio(diff, 'pre'); 
+            // Passiamo -1 come elapsed perché non è ancora iniziato
+            checkAudio(diff, 'pre', -1); 
 
         } else {
             const work = syncData.interval_mins * 60;
@@ -169,13 +179,14 @@ function tick() {
             const elapsed = Math.floor((now - master) / 1000);
 
             if (syncData.final_mode) {
-                // FINAL
+                // FINAL 
                 const rem = Math.max(0, work - elapsed);
                 timeText = format(rem);
-                color = rem <= 10 ? "#ef4444" : "#fff";
+                color = "#fff"; // Rimane bianco come richiesto
                 bar.style.width = (rem / work) * 100 + "%";
                 
-                checkAudio(rem, 'final'); 
+                // Passiamo "elapsed"
+                checkAudio(rem, 'final', elapsed); 
 
             } else {
                 const cycle = work + rest;
@@ -187,7 +198,8 @@ function tick() {
                     bar.style.width = (rem / work) * 100 + "%";
                     bar.style.backgroundColor = "#38bdf8";
                     
-                    checkAudio(rem, 'work'); 
+                    // Passiamo "elapsed"
+                    checkAudio(rem, 'work', elapsed); 
 
                 } else {
                     // REST
@@ -197,7 +209,8 @@ function tick() {
                     bar.style.width = (rem / rest) * 100 + "%";
                     bar.style.backgroundColor = "#ef4444";
                     
-                    checkAudio(rem, 'rest'); 
+                    // Passiamo "elapsed"
+                    checkAudio(rem, 'rest', elapsed); 
                 }
             }
         }
