@@ -1,19 +1,6 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Live Receiver</title>
-    <script src="https://js.pusher.com/8.0/pusher.min.js"></script>
-    <style>
-      body {
-        background: #0f172a;
-        color: white;
-        font-family: sans-serif;
-        text-align: center;
-        padding-top: 50px;
-      }
-      #status {<!DOCTYPE html>
-<html>
-  <head>
     <title>Live Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -38,8 +25,7 @@
     <script>
       // Get these from Supabase Project Settings > API
       const SUPABASE_URL = "https://lissscvlvmzjswsykvoq.supabase.co";
-      const SUPABASE_KEY =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxpc3NzY3Zsdm16anN3c3lrdm9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0ODAyNTAsImV4cCI6MjA5MDA1NjI1MH0.Muj9vosIuV1bFJQ5_iR9JkQ22gzvBcc70kbjnBFwBbM";
+      const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxpc3NzY3Zsdm16anN3c3lrdm9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0ODAyNTAsImV4cCI6MjA5MDA1NjI1MH0.Muj9vosIuV1bFJQ5_iR9JkQ22gzvBcc70kbjnBFwBbM";
       const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
       // 1. Get initial score
@@ -60,41 +46,6 @@
           }
         )
         .subscribe();
-    </script>
-  </body>
-</html>
-
-        font-size: 40px;
-        font-weight: bold;
-        transition: 0.3s;
-      }
-      .box {
-        border: 2px solid #334155;
-        padding: 20px;
-        display: inline-block;
-        border-radius: 10px;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="box">
-      <h1>Live Score Status</h1>
-      <div id="status">WAITING...</div>
-      <p id="timestamp"></p>
-    </div>
-
-    <script>
-      // REPLACE WITH YOUR ACTUAL KEY AND CLUSTER
-      const pusher = new Pusher("6d155995c2ac2b71c496", { cluster: "eu" });
-      const channel = pusher.subscribe("my-channel");
-
-      channel.bind("score-update", function (data) {
-        const el = document.getElementById("status");
-        el.innerText = data.score;
-        el.style.color = data.score === "TOP" ? "#10b981" : "#fbbf24";
-        document.getElementById("timestamp").innerText =
-          "Last updated: " + new Date().toLocaleTimeString();
-      });
     </script>
   </body>
 </html>
