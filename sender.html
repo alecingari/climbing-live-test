@@ -1,115 +1,99 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Judge Remote</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
       body {
-        background: #1e293b;
+        background: #111827;
         color: white;
         font-family: sans-serif;
-        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         padding: 20px;
       }
-      .btn {
+      .card {
+        background: #1f2937;
+        padding: 25px;
+        border-radius: 15px;
         width: 100%;
-        padding: 20px;
-        margin: 10px 0;
-        font-size: 1.2rem;
-        border: none;
-        border-radius: 12px;
-        cursor: pointer;
-        font-weight: bold;
-        color: white;
-      }
-      .top {
-        background: #22c55e;
-      }
-      .zone {
-        background: #3b82f6;
-      }
-      .reset {
-        background: #64748b;
-      }
-      .timer-box {
-        background: #334155;
-        padding: 20px;
-        border-radius: 12px;
-        margin-top: 20px;
-      }
-      .start-btn {
-        background: #f59e0b;
-        width: 100%;
-      }
-      .stop-btn {
-        background: #ef4444;
-        width: 100%;
-        margin-top: 10px;
+        max-width: 400px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
       }
       input {
-        font-size: 2rem;
-        width: 80px;
-        text-align: center;
+        width: 100%;
+        padding: 15px;
+        margin: 10px 0;
         border-radius: 8px;
+        border: 1px solid #374151;
+        background: #374151;
+        color: white;
+        font-size: 1.5rem;
+        text-align: center;
+        box-sizing: border-box;
+      }
+      button {
+        width: 100%;
+        padding: 20px;
+        margin-top: 15px;
+        border-radius: 10px;
         border: none;
-        padding: 5px;
-        color: #000;
+        font-size: 1.2rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: opacity 0.2s;
+      }
+      .start {
+        background: #10b981;
+        color: white;
+      }
+      .stop {
+        background: #ef4444;
+        color: white;
+      }
+      label {
+        color: #9ca3af;
+        font-size: 0.9rem;
+        text-transform: uppercase;
       }
     </style>
   </head>
   <body>
-    <h3>ATHLETE SCORE</h3>
-    <button class="btn top" onclick="sendToDB('TOP')">TOP</button>
-    <button class="btn zone" onclick="sendToDB('ZONE')">ZONE</button>
-    <button class="btn reset" onclick="sendToDB('WAITING')">RESET SCORE</button>
+    <div class="card">
+      <label>Work Interval (Mins)</label>
+      <input id="time" type="number" value="5" min="1" />
 
-    <div class="timer-box">
-      <h3>TIMER</h3>
-      <input type="number" id="mins" value="4" /> <span style="font-size: 1.2rem">MINS</span>
-      <button class="btn start-btn" onclick="startClock()">START CLOCK</button>
-      <button class="btn stop-btn" onclick="stopClock()">STOP</button>
+      <label>Rest Interval (Secs)</label>
+      <input id="rest" type="number" value="15" min="0" />
+
+      <button class="start" onclick="controlTimer('running')">START CLOCK</button>
+      <button class="stop" onclick="controlTimer('stopped')">RESET / STOP</button>
     </div>
 
     <script>
-      // INSERT YOUR CREDENTIALS HERE
       const SB_URL = "https://lissscvlvmzjswsykvoq.supabase.co";
       const SB_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxpc3NzY3Zsdm16anN3c3lrdm9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0ODAyNTAsImV4cCI6MjA5MDA1NjI1MH0.Muj9vosIuV1bFJQ5_iR9JkQ22gzvBcc70kbjnBFwBbM";
+      const supabaseRemote = supabase.createClient(SB_URL, SB_KEY);
 
-      // Use a unique name for the client
-      const remoteClient = supabase.createClient(SB_URL, SB_KEY);
+      async function controlTimer(status) {
+        const mins = document.getElementById("time").value;
+        const rest = document.getElementById("rest").value;
+        // Calculate when the work period ends
+        const endTime = new Date(Date.now() + mins * 60000).toISOString();
 
-      async function sendToDB(val) {
-        console.log("Sending score:", val);
-        const { error } = await remoteClient
+        const { error } = await supabaseRemote
           .from("live_scores")
-          .update({ score_value: val })
+          .update({
+            timer_status: status,
+            interval_mins: mins,
+            rest_secs: rest,
+            timer_end: endTime,
+          })
           .eq("id", 1);
-        if (error) alert("Error: " + error.message);
-      }
 
-      async function startClock() {
-        const m = document.getElementById("mins").value;
-        const endTime = new Date(Date.now() + m * 60000).toISOString();
-        console.log("Setting timer end to:", endTime);
-
-        const { error } = await remoteClient
-          .from("live_scores")
-          .update({ timer_end: endTime })
-          .eq("id", 1);
-        if (error) alert("Error: " + error.message);
-      }
-
-      async function stopClock() {
-        // Setting timer_end to "now" forces the dashboard to hit 00:00
-        const now = new Date().toISOString();
-        const { error } = await remoteClient
-          .from("live_scores")
-          .update({ timer_end: now })
-          .eq("id", 1);
-        if (error) alert("Error: " + error.message);
+        if (error) alert(error.message);
       }
     </script>
   </body>
