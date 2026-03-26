@@ -1,0 +1,3 @@
+// config.js
+const SB_URL = 'https://lissscvlvmzjswsykvoq.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxpc3NzY3Zsdm16anN3c3lrdm9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0ODAyNTAsImV4cCI6MjA5MDA1NjI1MH0.Muj9vosIuV1bFJQ5_iR9JkQ22gzvBcc70kbjnBFwBbM';

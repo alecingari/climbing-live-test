@@ -2,99 +2,124 @@
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="config.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
       body {
-        background: #111827;
+        background: #1a1a1a;
         color: white;
         font-family: sans-serif;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
         padding: 20px;
       }
-      .card {
-        background: #1f2937;
-        padding: 25px;
-        border-radius: 15px;
-        width: 100%;
+      .panel {
+        background: #2a2a2a;
+        padding: 20px;
+        border-radius: 12px;
         max-width: 400px;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+        margin: auto;
+      }
+      .opt {
+        margin-bottom: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
       }
       input {
-        width: 100%;
-        padding: 15px;
-        margin: 10px 0;
-        border-radius: 8px;
-        border: 1px solid #374151;
-        background: #374151;
+        background: #444;
+        border: 1px solid #555;
         color: white;
-        font-size: 1.5rem;
+        padding: 8px;
+        border-radius: 4px;
+        width: 60px;
         text-align: center;
-        box-sizing: border-box;
       }
       button {
         width: 100%;
-        padding: 20px;
-        margin-top: 15px;
-        border-radius: 10px;
+        padding: 15px;
+        margin-top: 10px;
         border: none;
-        font-size: 1.2rem;
-        font-weight: bold;
+        border-radius: 8px;
         cursor: pointer;
-        transition: opacity 0.2s;
+        font-weight: bold;
       }
-      .start {
-        background: #10b981;
+      .btn-start {
+        background: #22c55e;
         color: white;
       }
-      .stop {
+      .btn-stop {
         background: #ef4444;
         color: white;
-      }
-      label {
-        color: #9ca3af;
-        font-size: 0.9rem;
-        text-transform: uppercase;
       }
     </style>
   </head>
   <body>
-    <div class="card">
-      <label>Work Interval (Mins)</label>
-      <input id="time" type="number" value="5" min="1" />
-
-      <label>Rest Interval (Secs)</label>
-      <input id="rest" type="number" value="15" min="0" />
-
-      <button class="start" onclick="controlTimer('running')">START CLOCK</button>
-      <button class="stop" onclick="controlTimer('stopped')">RESET / STOP</button>
+    <div class="panel">
+      <h2>Timer Control</h2>
+      <div class="opt">
+        <label>Interval (min):</label>
+        <input id="time" type="number" value="5" />
+      </div>
+      <div class="opt">
+        <label>Rest (sec):</label>
+        <input id="rest" type="number" value="15" />
+      </div>
+      <div class="opt">
+        <label>Start at (HH:MM):</label>
+        <div style="display: flex; gap: 5px">
+          <input id="h" type="number" placeholder="HH" min="0" max="23" />
+          <input id="m" type="number" placeholder="MM" min="0" max="59" />
+        </div>
+      </div>
+      <button class="btn-start" onclick="sendTimer('running')">START / SYNC ALL</button>
+      <button class="btn-stop" onclick="sendTimer('stopped')">STOP / RESET</button>
     </div>
 
     <script>
-      const SB_URL = "https://lissscvlvmzjswsykvoq.supabase.co";
-      const SB_KEY =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxpc3NzY3Zsdm16anN3c3lrdm9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0ODAyNTAsImV4cCI6MjA5MDA1NjI1MH0.Muj9vosIuV1bFJQ5_iR9JkQ22gzvBcc70kbjnBFwBbM";
-      const supabaseRemote = supabase.createClient(SB_URL, SB_KEY);
+      const remoteClient = supabase.createClient(SB_URL, SB_KEY);
 
-      async function controlTimer(status) {
+      async function sendTimer(status) {
+        let endTime;
         const mins = document.getElementById("time").value;
-        const rest = document.getElementById("rest").value;
-        // Calculate when the work period ends
-        const endTime = new Date(Date.now() + mins * 60000).toISOString();
+        const h = document.getElementById("h").value;
+        const m = document.getElementById("m").value;
 
-        const { error } = await supabaseRemote
+        if (status === "running") {
+          if (h !== "" && m !== "") {
+            // Start at specific time
+            let target = new Date();
+            target.setHours(h, m, 0, 0);
+            // If time is in the past, assume tomorrow
+            if (target < new Date()) target.setDate(target.getDate() + 1);
+            endTime = target.toISOString();
+          } else {
+            // Start immediately
+            endTime = new Date(Date.now() + mins * 60000).toISOString();
+          }
+        } else {
+          endTime = new Date().toISOString();
+        }
+
+        await remoteClient
           .from("live_scores")
           .update({
             timer_status: status,
             interval_mins: mins,
-            rest_secs: rest,
+            rest_secs: document.getElementById("rest").value,
             timer_end: endTime,
           })
           .eq("id", 1);
-
-        if (error) alert(error.message);
       }
+
+      // Force a sync heartbeat every 1 minute
+      setInterval(() => {
+        remoteClient
+          .from("live_scores")
+          .select("timer_status")
+          .eq("id", 1)
+          .then(() => {
+            console.log("Heartbeat sync sent to server");
+          });
+      }, 60000);
     </script>
   </body>
 </html>

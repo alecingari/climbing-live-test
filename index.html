@@ -2,13 +2,14 @@
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="config.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
       body {
         margin: 0;
         background: #000;
         color: #fff;
-        font-family: "Arial Black", sans-serif;
+        font-family: sans-serif;
         overflow: hidden;
         height: 100vh;
         display: flex;
@@ -18,101 +19,81 @@
       }
       #demo {
         font-size: 35vw;
-        line-height: 1;
-        transition: color 0.3s;
+        font-family: monospace;
       }
       #progress-bar {
         position: absolute;
         bottom: 0;
         width: 100%;
-        height: 25px;
+        height: 20px;
         background: #222;
       }
       #progress-done {
         height: 100%;
         background: #fff;
         width: 0%;
-        transition: width 1s linear;
+        transition: width 0.5s linear;
       }
     </style>
   </head>
   <body>
-    <div id="demo">0:00</div>
+    <div id="demo">00:00</div>
     <div id="progress-bar"><div id="progress-done"></div></div>
 
     <script>
-      const SB_URL = "https://lissscvlvmzjswsykvoq.supabase.co";
-      const SB_KEY =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxpc3NzY3Zsdm16anN3c3lrdm9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0ODAyNTAsImV4cCI6MjA5MDA1NjI1MH0.Muj9vosIuV1bFJQ5_iR9JkQ22gzvBcc70kbjnBFwBbM";
       const client = supabase.createClient(SB_URL, SB_KEY);
-
-      // Assets (Assuming these paths match your VS Code setup)
-      const beep1 = new Audio("./file/beep-1.mp3");
       const beep5 = new Audio("./file/countdown.mp3");
       const beepEnd = new Audio("./file/beep-09.mp3");
 
       let timerInterval;
+      let lastKnownData = null;
 
-      function updateUI(seconds, total, isRest = false) {
-        const m = Math.floor(seconds / 60);
-        const s = seconds % 60;
-        const display = document.getElementById("demo");
+      function syncTimer() {
+        if (!lastKnownData || lastKnownData.timer_status !== "running") return;
 
-        display.innerText = `${m}:${s < 10 ? "0" + s : s}`;
-        display.style.color = isRest ? "#ef4444" : "#ffffff"; // Red for rest, White for work
+        const target = new Date(lastKnownData.timer_end).getTime();
+        const now = new Date().getTime();
+        const diff = Math.ceil((target - now) / 1000);
 
-        const progress = (seconds / total) * 100;
-        document.getElementById("progress-done").style.width = `${progress}%`;
-
-        // Audio triggers
-        if (!isRest) {
-          if (seconds === 60) beep1.play();
-          if (seconds === 5) beep5.play();
-          if (seconds === 0) beepEnd.play();
-        }
-      }
-
-      async function startSync(data) {
-        clearInterval(timerInterval);
-        if (data.timer_status !== "running") {
-          document.getElementById("demo").innerText = "0:00";
+        if (diff <= 0) {
+          document.getElementById("demo").innerText = "00:00";
           document.getElementById("progress-done").style.width = "0%";
+          if (diff === 0) beepEnd.play();
           return;
         }
 
-        const endTime = new Date(data.timer_end).getTime();
-        const totalWork = data.interval_mins * 60;
+        const m = Math.floor(diff / 60);
+        const s = diff % 60;
+        document.getElementById("demo").innerText = `${m}:${s < 10 ? "0" + s : s}`;
 
-        timerInterval = setInterval(() => {
-          const now = new Date().getTime();
-          const diff = Math.ceil((endTime - now) / 1000);
+        const totalSecs = lastKnownData.interval_mins * 60;
+        document.getElementById("progress-done").style.width = `${(diff / totalSecs) * 100}%`;
 
-          if (diff <= 0) {
-            clearInterval(timerInterval);
-            // If rest is set, we could trigger a local rest timer here
-            updateUI(0, totalWork);
-          } else {
-            updateUI(diff, totalWork);
-          }
-        }, 1000);
+        if (diff === 5) beep5.play();
       }
 
-      // 1. Initial Load Check
-      async function init() {
-        const { data } = await client.from("live_scores").select("*").eq("id", 1).single();
-        if (data) startSync(data);
-      }
-      init();
-
-      // 2. Realtime Listener
+      // Main Listener
       client
-        .channel("timer-room")
+        .channel("global-sync")
         .on(
           "postgres_changes",
           { event: "UPDATE", schema: "public", table: "live_scores" },
-          (payload) => startSync(payload.new)
+          (payload) => {
+            lastKnownData = payload.new;
+            console.log("Sync Received from Server");
+          }
         )
         .subscribe();
+
+      // High-frequency UI update (keeps the visual smooth)
+      setInterval(syncTimer, 100);
+
+      // Fetch initial state on load
+      async function loadInitial() {
+        const { data } = await client.from("live_scores").select("*").eq("id", 1).single();
+        lastKnownData = data;
+      }
+      loadInitial();
     </script>
   </body>
 </html>
