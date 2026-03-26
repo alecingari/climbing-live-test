@@ -1,7 +1,30 @@
 const client = supabase.createClient(SB_URL, SB_KEY);
 let syncData = null;
-let lastBroadcastText = "";
+let lastBroadcastText = ""; 
+let lastSec = -1; // Guard so it only beeps once per second
 
+// 1. AUDIO FILES (Declared globally just like your old file)
+var msgSound = new Audio("./file/notification.mp3");
+var beep1 = new Audio("./file/beep-1.mp3");
+var beep5 = new Audio("./file/countdown.mp3");
+var beepEnd = new Audio("./file/beep-09.mp3");
+
+// 2. AUDIO LOGIC (Replicating your old load/play logic)
+function checkAudio(s) {
+    if (s !== lastSec) {
+        if (s === 65) beep1.load();
+        if (s === 60) beep1.play().catch(e => console.log("Click page to allow audio"));
+        
+        if (s === 10) beep5.load();
+        if (s === 5) beep5.play().catch(e => console.log("Click page to allow audio"));
+        
+        if (s === 0) beepEnd.play().catch(e => console.log("Click page to allow audio"));
+        
+        lastSec = s;
+    }
+}
+
+// 3. BROADCAST UI & SOUND
 function updateBroadcastUI(text) {
     const container = document.getElementById("broadcast-overlay");
     const target = document.getElementById("broadcast-text");
@@ -10,14 +33,18 @@ function updateBroadcastUI(text) {
     lastBroadcastText = text;
 
     if (!text || text.trim() === "") {
-        container.style.opacity = "0";
+        container.style.opacity = "0"; 
         return;
     }
 
-    target.innerText = text;
-    container.style.opacity = "1";
+    // Play notification sound when a new message pops up
+    msgSound.currentTime = 0; 
+    msgSound.play().catch(e => {});
 
-    let fontSize = 7; 
+    target.innerText = text;
+    container.style.opacity = "1"; 
+
+    let fontSize = 7.5; 
     target.style.fontSize = fontSize + "vw";
 
     let safety = 0;
@@ -28,23 +55,21 @@ function updateBroadcastUI(text) {
     }
 }
 
+// 4. TIMER UI (Smooth Slide & Font Scale)
 function updateTimerUI(text) {
     const display = document.getElementById("demo");
     const container = document.getElementById("timer");
     const charCount = text.toString().length;
     
-    // DYNAMIC PUSH: Timer is 0 (centered) when no text, moves to 8vh when text appears
     let currentShift = (lastBroadcastText !== "") ? 8 : 0; 
     container.style.transform = `translateY(${currentShift}vh)`;
 
-    // REDUCED FONT SCALE: Changed 165 to 145 to prevent overflow
     let fontSizeVw = 145 / charCount;
     if (charCount <= 4) fontSizeVw = Math.min(fontSizeVw, 40); 
     if (charCount <= 2) fontSizeVw = Math.min(fontSizeVw, 55);
 
     display.style.fontSize = fontSizeVw + "vw";
 
-    // HEIGHT CAP: Reduced to 65% of screen to be safe
     if (display.offsetHeight > window.innerHeight * 0.65) {
         display.style.fontSize = "65vh";
     }
@@ -56,6 +81,7 @@ function format(s) {
     return m + ":" + (sec < 10 ? '0' + sec : sec);
 }
 
+// 5. THE MAIN TICK LOOP
 function tick() {
     if (!syncData) return;
     const display = document.getElementById("demo");
@@ -72,39 +98,51 @@ function tick() {
         const master = new Date(syncData.timer_end).getTime();
 
         if (now < master) {
+            // COUNTDOWN TO START
             const diff = Math.ceil((master - now) / 1000);
             timeText = format(diff);
             color = "#38bdf8";
             bar.style.width = "100%";
+            checkAudio(diff); // Check sounds
+
         } else {
             const work = syncData.interval_mins * 60;
             const rest = parseInt(syncData.rest_secs);
             const elapsed = Math.floor((now - master) / 1000);
 
             if (syncData.final_mode) {
+                // FINAL MODE
                 const rem = Math.max(0, work - elapsed);
                 timeText = format(rem);
                 color = rem <= 10 ? "#ef4444" : "#fff";
                 bar.style.width = (rem / work) * 100 + "%";
+                checkAudio(rem); // Check sounds
+
             } else {
+                // INTERVAL MODE
                 const cycle = work + rest;
                 const t = elapsed % cycle;
+                
                 if (t < work) {
                     const rem = work - t;
                     timeText = format(rem);
                     bar.style.width = (rem / work) * 100 + "%";
                     bar.style.backgroundColor = "#38bdf8";
+                    checkAudio(rem); // Check sounds
+
                 } else {
                     const rem = rest - (t - work);
                     timeText = rem.toString();
                     color = "#ef4444";
                     bar.style.width = (rem / rest) * 100 + "%";
                     bar.style.backgroundColor = "#ef4444";
+                    checkAudio(rem); // Check sounds
                 }
             }
         }
     } else {
         color = "#222"; 
+        lastSec = -1; // Reset guard if stopped
     }
 
     display.innerText = timeText;
