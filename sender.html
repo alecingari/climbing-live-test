@@ -1,63 +1,77 @@
 <!DOCTYPE html>
-<html>
-  <head>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Judge Remote</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
-      body {
-        background: #0f172a;
-        color: white;
-        font-family: sans-serif;
-        text-align: center;
-        padding: 20px;
-      }
-      .btn {
-        padding: 30px;
-        width: 100%;
-        font-size: 24px;
-        margin: 10px 0;
-        border-radius: 15px;
-        border: none;
-        font-weight: bold;
-      }
-      .t {
-        background: #10b981;
-      }
-      .z {
-        background: #fbbf24;
-      }
+        body { background: #1e293b; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
+        .btn { 
+            width: 100%; padding: 20px; margin: 10px 0; font-size: 1.2rem; border: none; 
+            border-radius: 12px; cursor: pointer; font-weight: bold; color: white;
+        }
+        .top { background: #22c55e; }
+        .zone { background: #3b82f6; }
+        .reset { background: #64748b; }
+        .timer-box { background: #334155; padding: 20px; border-radius: 12px; margin-top: 20px; }
+        .start-btn { background: #f59e0b; width: 100%; }
+        .stop-btn { background: #ef4444; width: 100%; margin-top: 10px; }
+        input { font-size: 2rem; width: 80px; text-align: center; border-radius: 8px; border: none; padding: 5px; color: #000; }
     </style>
-  </head>
-  <body>
-    <h1>Update Score</h1>
-    <button class="btn t" onclick="updateDB('TOP')">TOP</button>
-    <button class="btn z" onclick="updateDB('ZONE')">ZONE</button>
+</head>
+<body>
+
+    <h3>ATHLETE SCORE</h3>
+    <button class="btn top" onclick="sendToDB('TOP')">TOP</button>
+    <button class="btn zone" onclick="sendToDB('ZONE')">ZONE</button>
+    <button class="btn reset" onclick="sendToDB('WAITING')">RESET SCORE</button>
+
+    <div class="timer-box">
+        <h3>TIMER</h3>
+        <input type="number" id="mins" value="4"> <span style="font-size: 1.2rem;">MINS</span>
+        <button class="btn start-btn" onclick="startClock()">START CLOCK</button>
+        <button class="btn stop-btn" onclick="stopClock()">STOP/RESET</button>
+    </div>
 
     <script>
-        // 1. Initialize Supabase - USE A UNIQUE NAME (myClient) to avoid the "already declared" error
+        // INSERT YOUR CREDENTIALS HERE
         const SB_URL = 'https://lissscvlvmzjswsykvoq.supabase.co';
-        const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxpc3NzY3Zsdm16anN3c3lrdm9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0ODAyNTAsImV4cCI6MjA5MDA1NjI1MH0.Muj9vosIuV1bFJQ5_iR9JkQ22gzvBcc70kbjnBFwBbM';
+        const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxpc3NzY3Zsdm16anN3c3lrdm9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0ODAyNTAsImV4cCI6MjA5MDA1NjI1MH0.Muj9vosIuV1bFJQ5_iR9JkQ22gzvBcc70kbjnBFwBbM    ';
         
-        // We name the variable 'myClient' so it doesn't conflict with the 'supabase' library name
-        const myClient = supabase.createClient(SB_URL, SB_KEY);
-    
-        // 2. The function to update the score
-        async function updateDB(val) {
-            console.log("Attempting to send:", val);
-            
-            // We use 'upsert' so it creates the row if ID 1 is missing
-            const { data, error } = await myClient
+        // Use a unique name for the client
+        const remoteClient = supabase.createClient(SB_URL, SB_KEY);
+
+        async function sendToDB(val) {
+            console.log("Sending score:", val);
+            const { error } = await remoteClient
                 .from('live_scores')
-                .upsert({ id: 1, score_value: val });
-    
-            if (error) {
-                console.error("Supabase Error:", error.message);
-                alert("Error: " + error.message);
-            } else {
-                console.log("Success! Database updated to:", val);
-            }
+                .update({ score_value: val })
+                .eq('id', 1);
+            if (error) alert("Error: " + error.message);
+        }
+
+        async function startClock() {
+            const m = document.getElementById('mins').value;
+            const endTime = new Date(Date.now() + m * 60000).toISOString();
+            console.log("Setting timer end to:", endTime);
+            
+            const { error } = await remoteClient
+                .from('live_scores')
+                .update({ timer_end: endTime })
+                .eq('id', 1);
+            if (error) alert("Error: " + error.message);
+        }
+
+        async function stopClock() {
+            // Setting timer_end to "now" forces the dashboard to hit 00:00
+            const now = new Date().toISOString();
+            const { error } = await remoteClient
+                .from('live_scores')
+                .update({ timer_end: now })
+                .eq('id', 1);
+            if (error) alert("Error: " + error.message);
         }
     </script>
-  </body>
+</body>
 </html>
