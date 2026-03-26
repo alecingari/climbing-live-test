@@ -53,6 +53,7 @@
         color: var(--accent);
         font-weight: bold;
         min-height: 1.2em;
+        word-wrap: break-word;
       }
 
       /* Panels */
@@ -76,6 +77,29 @@
         display: block;
       }
 
+      /* Expanded Broadcast Area */
+      .broadcast-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      textarea {
+        background: #334155;
+        border: 1px solid #475569;
+        color: white;
+        padding: 12px;
+        border-radius: 10px;
+        font-size: 1rem;
+        width: 100%;
+        box-sizing: border-box;
+        resize: none;
+        font-family: inherit;
+      }
+      .broadcast-btns {
+        display: flex;
+        gap: 8px;
+      }
+
       /* Inputs */
       .opt {
         margin: 8px 0;
@@ -91,7 +115,6 @@
         font-weight: 600;
         color: #94a3b8;
       }
-
       input[type="number"] {
         background: #334155;
         border: 1px solid #475569;
@@ -101,16 +124,6 @@
         font-size: 1.1rem;
         width: 65px;
         text-align: center;
-      }
-      input[type="text"] {
-        background: #334155;
-        border: 1px solid #475569;
-        color: white;
-        padding: 10px;
-        border-radius: 8px;
-        font-size: 1rem;
-        width: 100%;
-        margin-right: 8px;
       }
       input[type="checkbox"] {
         width: 20px;
@@ -127,7 +140,7 @@
         width: 50px;
       }
 
-      /* Action Buttons */
+      /* Buttons */
       .btn-row {
         display: flex;
         gap: 10px;
@@ -158,17 +171,18 @@
         color: white;
       }
       .btn-push {
-        width: auto;
-        padding: 0 15px;
-        height: 42px;
         background: var(--accent);
         color: #0f172a;
         font-size: 0.85rem;
-        font-weight: 700;
-        border-radius: 8px;
+        padding: 12px;
+      }
+      .btn-clear {
+        background: #475569;
+        color: white;
+        font-size: 0.85rem;
+        padding: 12px;
       }
 
-      /* Lock Toggle Button */
       .lock-container {
         display: flex;
         justify-content: center;
@@ -196,16 +210,23 @@
   </head>
   <body>
     <div class="monitor">
-      <div id="mon-label">LIVE MONITOR</div>
+      <div id="mon-label">LIVE PREVIEW</div>
       <div id="mon-timer">0:00</div>
       <div id="mon-broadcast"></div>
     </div>
 
     <div class="panel">
       <span class="section-title">Broadcast Message</span>
-      <div style="display: flex; align-items: center">
-        <input type="text" id="broadcastInput" placeholder="Type here..." />
-        <button class="btn btn-push" onclick="pushBroadcast()">PUSH</button>
+      <div class="broadcast-controls">
+        <textarea id="broadcastInput" rows="2" placeholder="Enter long message..."></textarea>
+        <div class="broadcast-btns">
+          <button class="btn btn-push" style="flex: 2" onclick="pushBroadcast()">
+            PUSH TO SCREEN
+          </button>
+          <button class="btn btn-clear" style="flex: 1" onclick="clearBroadcast()">
+            RESET TEXT
+          </button>
+        </div>
       </div>
     </div>
 
@@ -258,9 +279,9 @@
       }
 
       function updateLockUI(locked) {
-        const startBtn = document.getElementById("startBtn");
-        const stopBtn = document.getElementById("stopBtn");
-        const lockBtn = document.getElementById("lockBtn");
+        const startBtn = document.getElementById("startBtn"),
+          stopBtn = document.getElementById("stopBtn"),
+          lockBtn = document.getElementById("lockBtn");
         if (locked) {
           startBtn.disabled = true;
           stopBtn.disabled = true;
@@ -277,6 +298,11 @@
       async function pushBroadcast() {
         const text = document.getElementById("broadcastInput").value;
         await client.from("live_scores").update({ broadcast_text: text }).eq("id", 1);
+      }
+
+      async function clearBroadcast() {
+        document.getElementById("broadcastInput").value = "";
+        await client.from("live_scores").update({ broadcast_text: "" }).eq("id", 1);
       }
 
       async function updateMaster(running) {
@@ -307,19 +333,40 @@
           .eq("id", 1);
       }
 
+      function format(s) {
+        const m = Math.floor(s / 60),
+          sec = s % 60;
+        return `${m}:${sec < 10 ? "0" + sec : sec}`;
+      }
+
       function tick() {
         if (!syncData) return;
         document.getElementById("mon-broadcast").innerText = syncData.broadcast_text || "";
         updateLockUI(syncData.is_locked);
+
         const display = document.getElementById("mon-timer");
         if (syncData.timer_status !== "running") {
           display.innerText = "0:00";
           return;
         }
+
         const now = Date.now(),
           master = new Date(syncData.timer_end).getTime();
-        const elapsed = Math.floor((now - master) / 1000);
-        display.innerText = elapsed < 0 ? Math.abs(elapsed) : "LIVE";
+        if (now < master) {
+          display.innerText = Math.ceil((master - now) / 1000);
+        } else {
+          const work = syncData.interval_mins * 60,
+            rest = parseInt(syncData.rest_secs);
+          const elapsed = Math.floor((now - master) / 1000);
+          if (syncData.final_mode) {
+            const r = Math.max(0, work - elapsed);
+            display.innerText = format(r);
+          } else {
+            const cycle = work + rest,
+              time = elapsed % cycle;
+            display.innerText = time < work ? format(work - time) : rest - (time - work);
+          }
+        }
       }
 
       client
@@ -338,7 +385,7 @@
         const { data } = await client.from("live_scores").select("*").eq("id", 1).single();
         syncData = data;
         tick();
-        setInterval(tick, 1000);
+        setInterval(tick, 200);
       }
       init();
     </script>
