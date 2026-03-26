@@ -23,29 +23,34 @@
     <div id="status">...</div>
 
     <script>
-      // Get these from Supabase Project Settings > API
-      const SUPABASE_URL = "https://lissscvlvmzjswsykvoq.supabase.co";
-      const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxpc3NzY3Zsdm16anN3c3lrdm9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0ODAyNTAsImV4cCI6MjA5MDA1NjI1MH0.Muj9vosIuV1bFJQ5_iR9JkQ22gzvBcc70kbjnBFwBbM";
-      const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-      // 1. Get initial score
-      async function getInitial() {
-        const { data } = await supabase.from("live_scores").select().single();
-        if (data) document.getElementById("status").innerText = data.score_value;
-      }
-      getInitial();
-
-      // 2. Listen for LIVE changes
-      supabase
-        .channel("schema-db-changes")
-        .on(
-          "postgres_changes",
-          { event: "UPDATE", schema: "public", table: "live_scores" },
-          (payload) => {
-            document.getElementById("status").innerText = payload.new.score_value;
-          }
-        )
-        .subscribe();
+        const SB_URL = 'https://lissscvlvmzjswsykvoq.supabase.co';
+        const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxpc3NzY3Zsdm16anN3c3lrdm9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0ODAyNTAsImV4cCI6MjA5MDA1NjI1MH0.Muj9vosIuV1bFJQ5_iR9JkQ22gzvBcc70kbjnBFwBbM';
+    
+        // 1. Initialize with a unique name
+        const receiverClient = supabase.createClient(SB_URL, SB_KEY);
+    
+        // 2. Start listening for changes
+        receiverClient
+          .channel('live-updates')
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'live_scores'
+            },
+            (payload) => {
+              console.log('New data received:', payload);
+              // Make sure your HTML has <h1 id="status">...</h1>
+              const statusElement = document.getElementById('status');
+              if (statusElement) {
+                  statusElement.innerText = payload.new.score_value;
+              }
+            }
+          )
+          .subscribe((status) => {
+            console.log("Subscription status:", status);
+          });
     </script>
   </body>
 </html>
