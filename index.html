@@ -11,7 +11,59 @@
         text-align: center;
         padding-top: 50px;
       }
+      #status {<!DOCTYPE html>
+<html>
+  <head>
+    <title>Live Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+      body {
+        background: #0f172a;
+        color: white;
+        font-family: sans-serif;
+        text-align: center;
+        padding-top: 50px;
+      }
       #status {
+        font-size: 80px;
+        font-weight: 900;
+        color: #22d3ee;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>LIVE SCORE</h1>
+    <div id="status">...</div>
+
+    <script>
+      // Get these from Supabase Project Settings > API
+      const SUPABASE_URL = "https://lissscvlvmzjswsykvoq.supabase.co";
+      const SUPABASE_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxpc3NzY3Zsdm16anN3c3lrdm9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0ODAyNTAsImV4cCI6MjA5MDA1NjI1MH0.Muj9vosIuV1bFJQ5_iR9JkQ22gzvBcc70kbjnBFwBbM";
+      const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      // 1. Get initial score
+      async function getInitial() {
+        const { data } = await supabase.from("live_scores").select().single();
+        if (data) document.getElementById("status").innerText = data.score_value;
+      }
+      getInitial();
+
+      // 2. Listen for LIVE changes
+      supabase
+        .channel("schema-db-changes")
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "live_scores" },
+          (payload) => {
+            document.getElementById("status").innerText = payload.new.score_value;
+          }
+        )
+        .subscribe();
+    </script>
+  </body>
+</html>
+
         font-size: 40px;
         font-weight: bold;
         transition: 0.3s;
